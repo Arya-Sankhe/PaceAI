@@ -36,14 +36,15 @@ def embed_image(png_bytes: bytes) -> list[float]:
     return list(res.embeddings[0].values)
 
 
-def generate_json(prompt: str, image_png: bytes | None = None) -> str:
+def generate_json(prompt: str, image_png: bytes | list[bytes] | None = None) -> str:
     """Returns raw JSON text; parsing/validation lives with the caller."""
     from google.genai import types
 
     client = _client()
     parts: list = [prompt]
     if image_png is not None:
-        parts.append(types.Part.from_bytes(data=image_png, mime_type="image/png"))
+        for png in (image_png if isinstance(image_png, list) else [image_png]):
+            parts.append(types.Part.from_bytes(data=png, mime_type="image/png"))
     res = client.models.generate_content(
         model=settings.GEMINI_MODEL,
         contents=parts,
@@ -52,3 +53,7 @@ def generate_json(prompt: str, image_png: bytes | None = None) -> str:
         ),
     )
     return res.text or "{}"
+
+
+def generate_json_multi(prompt: str, images: list[bytes]) -> str:
+    return generate_json(prompt, images or None)
