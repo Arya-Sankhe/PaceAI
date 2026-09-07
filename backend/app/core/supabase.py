@@ -1,30 +1,23 @@
 from supabase import create_client, Client
 from app.core.config import settings
-import logging
 import threading
 
-logger = logging.getLogger(__name__)
-
-_supabase_client: Client = None
+_admin_client: Client | None = None
 _lock = threading.Lock()
 
-def get_supabase_client() -> Client:
+def get_supabase_admin_client() -> Client:
     """
-    Returns a thread-safe singleton instance of the Supabase client initialized with
-    the service role key for full backend operational access.
+    Thread-safe client reserved strictly for Storage & Auth administration.
+    Database DML routes through dedicated database connection pool (SUPABASE_DB_URL).
     """
-    global _supabase_client
-    if _supabase_client is None:
+    global _admin_client
+    if _admin_client is None:
         with _lock:
-            if _supabase_client is None:
+            if _admin_client is None:
                 if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
-                    logger.warning(
-                        "Supabase credentials not configured (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing). "
-                        "Running in unconfigured / offline mock mode."
-                    )
-                    return None
-                _supabase_client = create_client(
+                    raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set.")
+                _admin_client = create_client(
                     settings.SUPABASE_URL,
                     settings.SUPABASE_SERVICE_ROLE_KEY
                 )
-    return _supabase_client
+    return _admin_client
