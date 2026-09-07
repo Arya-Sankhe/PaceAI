@@ -1,0 +1,57 @@
+# Signed tag manifest. Cloud never sends node IDs — this file is the allowlist.
+# Node IDs below follow B&R mapp naming; VERIFY every node on site before production.
+manifest_version: orion-v1
+supported_by_collector: [orion-v1]
+
+machines:
+  - machine_key: orion_1
+  - machine_key: orion_2
+
+# class: fast = 1s snapshot, slow = 5s snapshot, event = immediate transition
+defaults: {type: Float, q Good: true}
+
+tags:
+  # — 4 PID heater zones (per machine) —
+  - {key: hor_front_temp,  node: "::Orion:HorFront_Temp",  unit: °C, class: fast}
+  - {key: hor_front_set,   node: "::Orion:HorFront_Set",   unit: °C, class: slow}
+  - {key: hor_front_out,   node: "::Orion:HorFront_Out",   unit: "%", class: fast, range: [0, 100]}
+  - {key: hor_front_intol, node: "::Orion:HorFront_InTol", type: Bool, class: event}
+  - {key: hor_rear_temp,   node: "::Orion:HorRear_Temp",   unit: °C, class: fast}
+  - {key: hor_rear_set,    node: "::Orion:HorRear_Set",    unit: °C, class: slow}
+  - {key: hor_rear_out,    node: "::Orion:HorRear_Out",    unit: "%", class: fast, range: [0, 100]}
+  - {key: hor_rear_intol,  node: "::Orion:HorRear_InTol",  type: Bool, class: event}
+  - {key: ver1_temp,       node: "::Orion:Ver1_Temp",      unit: °C, class: fast}
+  - {key: ver1_set,        node: "::Orion:Ver1_Set",       unit: °C, class: slow}
+  - {key: ver1_out,        node: "::Orion:Ver1_Out",       unit: "%", class: fast, range: [0, 100]}
+  - {key: ver1_intol,      node: "::Orion:Ver1_InTol",     type: Bool, class: event}
+  - {key: ver2_temp,       node: "::Orion:Ver2_Temp",      unit: °C, class: fast}
+  - {key: ver2_set,        node: "::Orion:Ver2_Set",       unit: °C, class: slow}
+  - {key: ver2_out,        node: "::Orion:Ver2_Out",       unit: "%", class: fast, range: [0, 100]}
+  - {key: ver2_intol,      node: "::Orion:Ver2_InTol",     type: Bool, class: event}
+
+  # — 6 servo axes: BX box, CS cross-seal, FF film feed, PK poker, UW unwind, VS vertical seal —
+  - {key: bx_vel,  node: "::Orion:BX_Vel",  unit: rpm, class: fast}
+  - {key: bx_cur,  node: "::Orion:BX_Cur",  unit: A, class: fast}
+  - {key: bx_err,  node: "::Orion:BX_ErrID", type: DInt, class: event}
+  - {key: cs_vel,  node: "::Orion:CS_Vel",  unit: rpm, class: fast}
+  - {key: cs_cur,  node: "::Orion:CS_Cur",  unit: A, class: fast}
+  - {key: cs_err,  node: "::Orion:CS_ErrID", type: DInt, class: event}
+  - {key: ff_vel,  node: "::Orion:FF_Vel",  unit: rpm, class: fast}
+  - {key: ff_cur,  node: "::Orion:FF_Cur",  unit: A, class: fast}
+  - {key: ff_err,  node: "::Orion:FF_ErrID", type: DInt, class: event}
+  - {key: pk_vel,  node: "::Orion:PK_Vel",  unit: rpm, class: fast}
+  - {key: pk_cur,  node: "::Orion:PK_Cur",  unit: A, class: fast}
+  - {key: pk_err,  node: "::Orion:PK_ErrID", type: DInt, class: event}
+  - {key: uw_vel,  node: "::Orion:UW_Vel",  unit: rpm, class: fast}
+  - {key: uw_cur,  node: "::Orion:UW_Cur",  unit: A, class: fast}
+  - {key: uw_err,  node: "::Orion:UW_ErrID", type: DInt, class: event}
+  - {key: vs_vel,  node: "::Orion:VS_Vel",  unit: rpm, class: fast}
+  - {key: vs_cur,  node: "::Orion:VS_Cur",  unit: A, class: fast}
+  - {key: vs_err,  node: "::Orion:VS_ErrID", type: DInt, class: event}
+
+  # — OEE / production counters —
+  - {key: count_good, node: "::Orion:CountGood", type: UDInt, unit: bags, class: slow}
+  - {key: count_bad,  node: "::Orion:CountBad",  type: UDInt, unit: bags, class: slow}
+  - {key: running,    node: "::Orion:Running",   type: Bool, class: event}
+  - {key: alarm_cnt,  node: "::Orion:AlarmCnt",  type: UDInt, class: event}
+  - {key: fault_code, node: "::Orion:FaultCode", type: DInt, class: event}
