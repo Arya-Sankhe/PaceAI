@@ -159,6 +159,7 @@ CREATE TABLE IF NOT EXISTS ingestion_jobs (
     document_id UUID NOT NULL REFERENCES manual_documents(id) ON DELETE CASCADE,
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
     attempt_count INT NOT NULL DEFAULT 0,
+    leased_until TIMESTAMPTZ,                        -- crash recovery: expired lease = retryable
     last_error TEXT,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
@@ -255,6 +256,15 @@ ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC, anon;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC, anon;
 
+-- Table-level grants (policies alone grant nothing without these)
+GRANT SELECT ON machines, telemetry_latest, telemetry_samples, telemetry_events, telemetry_rollups_1m, manual_documents, manual_pages TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON conversations, messages TO authenticated;
+GRANT SELECT ON app_users TO authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
+
+-- Policy: users read only their own role row (backend resolves roles server-side)
+
 -- Policy: Authenticated users can read machines, telemetry, and manual docs
 CREATE POLICY "authenticated_read_machines" ON machines FOR SELECT TO authenticated USING (true);
 CREATE POLICY "authenticated_read_telemetry_latest" ON telemetry_latest FOR SELECT TO authenticated USING (true);
@@ -263,6 +273,9 @@ CREATE POLICY "authenticated_read_telemetry_events" ON telemetry_events FOR SELE
 CREATE POLICY "authenticated_read_telemetry_rollups" ON telemetry_rollups_1m FOR SELECT TO authenticated USING (true);
 CREATE POLICY "authenticated_read_documents" ON manual_documents FOR SELECT TO authenticated USING (true);
 CREATE POLICY "authenticated_read_pages" ON manual_pages FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "user_own_app_user" ON app_users FOR SELECT TO authenticated
+    USING (auth.uid() = id);
 
 -- Policy: Authenticated users manage only their own conversations & messages
 CREATE POLICY "user_own_conversations" ON conversations FOR ALL TO authenticated 
