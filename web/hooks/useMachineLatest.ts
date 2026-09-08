@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type MachineState } from "@/lib/api";
 
+const unknownState = (key: string): MachineState => ({
+  machine_key: key, freshness: "unknown", source_ts: null, age_seconds: null,
+  values: {}, quality: {}, collector_connected: false,
+});
+
 // 1s active / 10s hidden, instant refresh on focus. Values never silently freeze:
 // staleness is always visible via the state's own freshness + age.
 export function useMachineLatest(key: string) {
@@ -15,6 +20,7 @@ export function useMachineLatest(key: string) {
       setState(await api.latest(key));
       setError(null);
     } catch (e) {
+      setState(unknownState(key));
       setError(e instanceof Error ? e.message : "fetch_failed");
     }
   }, [key]);

@@ -1,34 +1,49 @@
 "use client";
 
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { AXES, HEATERS } from "@/components/cockpit/meta";
 import { FreshnessBadge } from "@/components/cockpit/FreshnessBadge";
 import { HeaterZoneCard } from "@/components/cockpit/HeaterZoneCard";
 import { ServoAxisCard } from "@/components/cockpit/ServoAxisCard";
 import { ProductionCard } from "@/components/cockpit/ProductionCard";
-import { HmiLinkBanner } from "@/components/cockpit/HmiLinkBanner";
 import { ChatSidebar } from "@/components/copilot/ChatSidebar";
 import { useMachineLatest } from "@/hooks/useMachineLatest";
+import { demoMode } from "@/lib/api";
 
-// ponytail: plant host lives here, not in the DB — deployment config, never an identifier.
-const HMI_HOST: Record<string, string> = { orion_1: "192.168.213.1", orion_2: "192.168.213.2" };
-
-export default function CockpitPage({ params }: { params: { key: string } }) {
-  const { state, error } = useMachineLatest(params.key);
+export default function CockpitPage() {
+  const { key } = useParams<{ key: string }>();
+  const { state, error } = useMachineLatest(key);
   const v = state?.values ?? {};
 
   return (
     <div className="space-y-4">
       <header className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-bold">{params.key === "orion_1" ? "Orion VFFS #1" : "Orion VFFS #2"}</h1>
+        <h1 className="text-xl font-bold">{key === "orion_1" ? "Orion VFFS #1" : "Orion VFFS #2"}</h1>
         {state && <FreshnessBadge freshness={state.freshness} age={state.age_seconds} />}
-        <Link href={`/machines/${params.key}/history`} className="text-sm text-sky-300">History & events →</Link>
+        <Link href={`/machines/${key}/history`} className="text-sm text-sky-300">History & events →</Link>
         {error && <span className="text-sm text-red-300">{error}</span>}
       </header>
 
+      {demoMode && (
+        <p className="rounded border border-sky-500/40 bg-sky-500/10 p-2 text-sm text-sky-200">
+          Dummy source · generated snapshot updates every second. Set <code>NEXT_PUBLIC_DEMO_MODE=false</code> to use FastAPI telemetry.
+        </p>
+      )}
+
+      <section className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">Current snapshot</h2>
+          <span className="text-xs text-zinc-500">{state?.source_ts ? new Date(state.source_ts).toLocaleTimeString() : "No sample timestamp"}</span>
+        </div>
+        <div className="mt-2 text-sm text-zinc-400">
+          {v.fault_code ? <span className="text-red-300">Active fault {v.fault_code} · horizontal front heater</span> : state?.freshness === "unknown" ? "Telemetry unknown — no trusted sample available." : "No active faults reported."}
+        </div>
+      </section>
+
       {!state?.collector_connected && (
         <p className="rounded border border-red-500/40 bg-red-500/10 p-2 text-sm text-red-200">
-          Collector unreachable — values below are historical, not live.
+          {state?.freshness === "unknown" ? "Telemetry unavailable — values below are unknown." : "Collector unreachable — values below are historical, not live."}
         </p>
       )}
 
@@ -47,8 +62,7 @@ export default function CockpitPage({ params }: { params: { key: string } }) {
       </section>
 
       <ProductionCard values={v} />
-      <HmiLinkBanner host={HMI_HOST[params.key] ?? "192.168.213.1"} />
-      <ChatSidebar machineKey={params.key} />
+      <ChatSidebar machineKey={key} />
     </div>
   );
 }

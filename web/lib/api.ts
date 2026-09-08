@@ -1,21 +1,24 @@
 import { supabase } from "./supabase";
 
-async function headers(init?: RequestInit): Promise<HeadersInit> {
+export const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE !== "false";
+
+async function authHeaders(init?: RequestInit): Promise<HeadersInit> {
+  if (demoMode) return { "Content-Type": "application/json", ...init?.headers };
   const { data } = await supabase().auth.getSession();
   const token = data.session?.access_token;
   return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...init?.headers };
 }
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api/v1${path}`, { ...init, headers: await headers(init) });
-  if (res.status === 401) {
-    if (typeof window !== "undefined") {
-      await supabase().auth.signOut();
-      window.location.href = "/login";
-    }
-    throw new Error("unauthorized");
+  const res = await fetch(`/api/v1${path}`, { ...init, headers: await authHeaders(init) });
+  if (res.status === 401 && !demoMode && typeof window !== "undefined") {
+    await supabase().auth.signOut();
+    window.location.href = "/login";
   }
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || `api_${res.status}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(typeof body.detail === "string" ? body.detail : `api_${res.status}`);
+  }
   return res.json();
 }
 
@@ -26,15 +29,18 @@ export const api = {
     req<History>(`/machines/${key}/history?since=${since}&until=${until}`),
   events: (key: string) => req<ApiEvent[]>(`/machines/${key}/events`),
   manuals: () => req<Manual[]>("/documents"),
-  upload: async (f: FormData) => {
-    const { data } = await supabase().auth.getSession();
-    const res = await fetch("/api/v1/documents/upload", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${data.session?.access_token}` },
-      body: f,
-    });
-    if (!res.ok) throw new Error("upload_failed");
-    return res.json();
+  upload: async (form: FormData) => {
+    const headers: HeadersInit = {};
+    if (!demoMode) {
+      const { data } = await supabase().auth.getSession();
+      if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
+    }
+    const res = await fetch("/api/v1/documents/upload", { method: "POST", headers, body: form });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(typeof body.detail === "string" ? body.detail : "upload_failed");
+    }
+    return res.json() as Promise<{ document_id: string; job_id: string }>;
   },
   job: (id: string) => req<{ status: string; last_error: string | null }>(`/documents/${id}/job`),
   activate: (id: string) => req<{ ok: boolean }>(`/documents/${id}/activate`, { method: "POST" }),
@@ -48,7 +54,7 @@ export type Freshness = "live" | "stale" | "disconnected" | "bad_quality" | "unk
 export interface MachineState {
   machine_key: string; freshness: Freshness; source_ts: string | null;
   age_seconds: number | null; values: Record<string, number>;
-  quality: Record<string, string>; collector_connected: boolean;
+  quality: Record<string, string>; collector_connected: boolean; source?: "dummy" | "plc";
 }
 export interface History { machine_key: string; resolution: string; points: { t: string; values: Record<string, number | null> }[]; }
 export interface ApiEvent { id: number; ts: string; event_type: string; severity: string; data: Record<string, unknown>; }

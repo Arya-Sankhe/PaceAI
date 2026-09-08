@@ -20,8 +20,8 @@ export function HeaterZoneCard({ prefix, label, values }: { prefix: string; labe
           {set != null ? `set ${set.toFixed(0)}°C` : ""}
         </span>
       </div>
-      <div className="mt-2 h-2 rounded bg-zinc-800" title={`Output ${out ?? "—"}%`}>
-        <div className="h-2 rounded bg-orange-400" style={{ width: `${pct}%` }} />
+      <div className="mt-2 h-2 rounded bg-zinc-800" title={`Output ${out ?? "unknown"}%`}>
+        <div className="h-2 rounded bg-orange-400" style={{ width: out == null ? "0%" : `${pct}%` }} />
       </div>
       <div className="mt-1 text-xs text-zinc-500">out {out != null ? `${out.toFixed(0)}%` : "—"}</div>
     </div>

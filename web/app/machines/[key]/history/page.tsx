@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { api, type ApiEvent, type History } from "@/lib/api";
 import { MetricHistoryChart } from "@/components/charts/MetricHistoryChart";
 
 const RANGES = [{ d: 1, label: "24h" }, { d: 7, label: "7d" }, { d: 30, label: "30d" }];
-const TEMP_KEYS = ["hor_front_temp", "hor_rear_temp", "ver1_temp", "ver2_temp"];
+const TEMP_KEYS = ["hor_front_temp", "hor_rear_temp", "vert1_temp", "vert2_temp"];
 
-export default function HistoryPage({ params }: { params: { key: string } }) {
+export default function HistoryPage() {
+  const { key } = useParams<{ key: string }>();
   const [days, setDays] = useState(1);
   const [hist, setHist] = useState<History | null>(null);
   const [events, setEvents] = useState<ApiEvent[]>([]);
@@ -15,14 +17,14 @@ export default function HistoryPage({ params }: { params: { key: string } }) {
   useEffect(() => {
     const until = new Date();
     const since = new Date(+until - days * 86400_000);
-    api.history(params.key, since.toISOString(), until.toISOString()).then(setHist).catch(() => {});
-    api.events(params.key).then(setEvents).catch(() => {});
-  }, [params.key, days]);
+    api.history(key, since.toISOString(), until.toISOString()).then(setHist).catch(() => {});
+    api.events(key).then(setEvents).catch(() => {});
+  }, [key, days]);
 
   return (
     <div className="space-y-4">
       <header className="flex items-center gap-3">
-        <h1 className="text-xl font-bold">History — {params.key}</h1>
+        <h1 className="text-xl font-bold">History — {key}</h1>
         {RANGES.map((r) => (
           <button key={r.d} onClick={() => setDays(r.d)}
             className={`rounded px-2 py-1 text-sm ${days === r.d ? "bg-emerald-600" : "bg-zinc-800"}`}>

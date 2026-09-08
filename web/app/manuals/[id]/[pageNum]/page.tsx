@@ -2,17 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 
 // ponytail: plain <img> on a 300s signed URL, refetched at 240s — no PDF.js for page PNGs.
-export default function PageViewer({ params }: { params: { id: string; pageNum: string } }) {
-  const num = Number(params.pageNum);
+export default function PageViewer() {
+  const { id, pageNum } = useParams<{ id: string; pageNum: string }>();
+  const num = Number(pageNum);
   const [url, setUrl] = useState("");
   const [zoom, setZoom] = useState(1);
 
   const load = useCallback(
-    () => api.pageUrl(params.id, num).then((r) => setUrl(r.url)).catch(() => {}),
-    [params.id, num]
+    () => api.pageUrl(id, num).then((r) => setUrl(r.url)).catch(() => {}),
+    [id, num]
   );
   useEffect(() => {
     load();
@@ -29,8 +31,8 @@ export default function PageViewer({ params }: { params: { id: string; pageNum: 
           <button onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))} className="rounded bg-zinc-800 px-2">−</button>
           <button onClick={() => setZoom((z) => Math.min(3, +(z + 0.25).toFixed(2)))} className="rounded bg-zinc-800 px-2">+</button>
         </div>
-        {num > 1 && <Link href={`/manuals/${params.id}/${num - 1}`} className="text-sm text-sky-300">← Prev</Link>}
-        <Link href={`/manuals/${params.id}/${num + 1}`} className="text-sm text-sky-300">Next →</Link>
+        {num > 1 && <Link href={`/manuals/${id}/${num - 1}`} className="text-sm text-sky-300">← Prev</Link>}
+        <Link href={`/manuals/${id}/${num + 1}`} className="text-sm text-sky-300">Next →</Link>
       </header>
       {url ? (
         <img src={url} alt={`Manual page ${num}`} style={{ width: `${zoom * 100}%` }}

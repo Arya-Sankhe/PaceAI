@@ -1,8 +1,8 @@
 export const HEATERS = [
   { prefix: "hor_front", label: "Horizontal Front" },
   { prefix: "hor_rear", label: "Horizontal Rear" },
-  { prefix: "ver1", label: "Vertical 1" },
-  { prefix: "ver2", label: "Vertical 2" },
+  { prefix: "vert1", label: "Vertical 1" },
+  { prefix: "vert2", label: "Vertical 2" },
 ] as const;
 
 export const AXES = [

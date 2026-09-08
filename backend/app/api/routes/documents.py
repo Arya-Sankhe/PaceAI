@@ -3,7 +3,7 @@
 import hashlib
 
 import anyio
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
 from app.api import deps
 from app.core import storage
@@ -17,7 +17,7 @@ MAX_PDF_BYTES = 100 * 1024 * 1024
 
 @router.post("/documents/upload", response_model=UploadOut)
 async def upload(
-    request, file: UploadFile = File(...),
+    request: Request, file: UploadFile = File(...),
     family_key: str = Form(...), title: str = Form(...), revision: str = Form("1.0"),
     admin=Depends(deps.require_admin), conn=Depends(deps.get_conn),
 ):
@@ -34,18 +34,33 @@ async def upload(
             "SELECT id FROM ingestion_jobs WHERE document_id = $1 ORDER BY created_at DESC LIMIT 1",
             dup["id"],
         )
+        if job is None:
+            job = await conn.fetchrow(
+                "INSERT INTO ingestion_jobs (document_id) VALUES ($1) RETURNING id", dup["id"]
+            )
         return UploadOut(document_id=dup["id"], job_id=job["id"], deduped=True)
+
+    # The first manual in a family is immediately the MVP's active revision;
+    # later uploads stay staged until the existing activate endpoint is used.
+    active = await conn.fetchval(
+        "SELECT EXISTS (SELECT 1 FROM manual_documents WHERE family_key = $1 AND is_active)",
+        family_key,
+    )
 
     doc = await conn.fetchrow(
         """INSERT INTO manual_documents
-           (family_key, revision, sha256, title, filename, pdf_storage_path, status)
-           VALUES ($1,$2,$3,$4,$5,$6,'pending') RETURNING id""",
-        family_key, revision, sha, title, file.filename or "manual.pdf", "",
+           (family_key, revision, sha256, title, filename, pdf_storage_path, status, is_active)
+           VALUES ($1,$2,$3,$4,$5,$6,'pending',$7) RETURNING id""",
+        family_key, revision, sha, title, file.filename or "manual.pdf", "", not active,
     )
     path = f"{storage.doc_prefix(str(doc['id']))}source.pdf"
-    await anyio.to_thread.run_sync(
-        storage.put_object, settings.SUPABASE_STORAGE_BUCKET_MANUALS, path, raw, "application/pdf"
-    )
+    try:
+        await anyio.to_thread.run_sync(
+            storage.put_object, settings.SUPABASE_STORAGE_BUCKET_MANUALS, path, raw, "application/pdf"
+        )
+    except Exception:
+        await conn.execute("DELETE FROM manual_documents WHERE id = $1", doc["id"])
+        raise
     await conn.execute(
         "UPDATE manual_documents SET pdf_storage_path = $1 WHERE id = $2", path, doc["id"]
     )
@@ -78,7 +93,7 @@ async def job_status(doc_id: str, _=Depends(deps.require_user), conn=Depends(dep
 
 
 @router.post("/documents/{doc_id}/activate")
-async def activate(doc_id: str, request, admin=Depends(deps.require_admin), conn=Depends(deps.get_conn)):
+async def activate(doc_id: str, request: Request, admin=Depends(deps.require_admin), conn=Depends(deps.get_conn)):
     doc = await conn.fetchrow(
         "SELECT id, family_key, status FROM manual_documents WHERE id = $1", _uuid(doc_id)
     )

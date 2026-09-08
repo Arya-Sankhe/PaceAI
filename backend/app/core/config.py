@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     # Defaults to development so bare imports/tests never crash
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
+    DEMO_MODE: bool = True
+    MOCK_FAULT: str = "hor_front_temp"
+    MOCK_FAULT_MACHINE: str = "orion_1"
     
     # Supabase (Dedicated role URL + Admin credentials)
     SUPABASE_DB_URL: str = ""

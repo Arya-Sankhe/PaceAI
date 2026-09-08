@@ -1,7 +1,5 @@
 """Trust-boundary checks. Every protected route uses one of these."""
 
-import hashlib
-import hmac
 import time
 from uuid import UUID
 
@@ -37,6 +35,8 @@ async def _jwks_keys() -> dict:
 
 async def require_user(authorization: str = Header("")) -> UUID:
     """Validates Supabase access token, returns auth user id."""
+    if settings.DEMO_MODE:
+        return UUID(int=0)
     if not authorization.startswith("Bearer "):
         raise HTTPException(401, "missing_bearer")
     token = authorization[7:]
@@ -56,32 +56,12 @@ async def require_user(authorization: str = Header("")) -> UUID:
 
 
 async def require_admin(user_id: UUID = Depends(require_user), conn=Depends(get_conn)) -> UUID:
+    if settings.DEMO_MODE:
+        return user_id
     row = await conn.fetchrow("SELECT role FROM app_users WHERE id = $1", user_id)
     if row is None or row["role"] != "admin":
         raise HTTPException(403, "admin_required")
     return user_id
-
-
-async def require_edge(
-    x_edge_id: str = Header(""), x_edge_secret: str = Header(""), conn=Depends(get_conn)
-):
-    """Per-collector bearer secret (sha256 hex at rest). Revocable via is_active."""
-    try:
-        edge_id = UUID(x_edge_id)
-    except ValueError:
-        raise HTTPException(401, "unknown_edge")
-    row = await conn.fetchrow(
-        "SELECT id, secret_hash, is_active FROM edge_devices WHERE id = $1", edge_id
-    )
-    if row is None or not row["is_active"]:
-        raise HTTPException(401, "unknown_edge")
-    digest = hashlib.sha256(x_edge_secret.encode()).hexdigest()
-    if not hmac.compare_digest(digest, row["secret_hash"]):
-        raise HTTPException(401, "bad_edge_secret")
-    await conn.execute(
-        "UPDATE edge_devices SET last_seen_at = now() WHERE id = $1", edge_id
-    )
-    return row
 
 
 def log_admin(action: str, request: Request, target: str = "") -> None:

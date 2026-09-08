@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { demoMode } from "@/lib/api";
 
 export interface Citation { document_id: string; revision: string; page_number: number }
 export interface Diagnosis {
@@ -16,15 +17,16 @@ export function useCopilotStream(machineKey: string) {
   const [citations, setCitations] = useState<Citation[]>([]);
   const [answer, setAnswer] = useState<Diagnosis | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
 
   async function ask(message: string) {
     setBusy(true); setStatus(""); setCitations([]); setAnswer(null); setError(null);
     try {
-      const { data } = await supabase().auth.getSession();
+      const { data } = demoMode ? { data: { session: null } } : await supabase().auth.getSession();
       const res = await fetch(`/api/v1/machines/${machineKey}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token}` },
-        body: JSON.stringify({ message }),
+        headers: { "Content-Type": "application/json", ...(data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {}) },
+        body: JSON.stringify({ message, ...(conversationId ? { conversation_id: conversationId } : {}) }),
       });
       if (!res.ok || !res.body) throw new Error("chat_failed");
       const reader = res.body.getReader();
@@ -49,7 +51,7 @@ export function useCopilotStream(machineKey: string) {
           if (ev[1] === "status") setStatus(STEP[data] ?? data);
           else if (ev[1] === "citation") setCitations((c) => [...c, data]);
           else if (ev[1] === "delta") raw += data;
-          else if (ev[1] === "completed") setAnswer(data.answer);
+          else if (ev[1] === "completed") { setConversationId(data.conversation_id ?? null); setAnswer(data.answer); }
           else if (ev[1] === "error") throw new Error(data);
         }
       }
@@ -61,5 +63,5 @@ export function useCopilotStream(machineKey: string) {
     }
   }
 
-  return { busy, status, citations, answer, error, ask };
+  return { busy, status, citations, answer, error, conversationId, ask };
 }

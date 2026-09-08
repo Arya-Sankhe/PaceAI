@@ -7,7 +7,8 @@ from app.core.supabase import get_supabase_admin_client
 def put_object(bucket: str, path: str, data: bytes, content_type: str) -> None:
     sb = get_supabase_admin_client()
     sb.storage.from_(bucket).upload(
-        path, data, {"content-type": content_type, "upsert": "false"}
+        # Re-running a job should replace its deterministic page path.
+        path, data, {"content-type": content_type, "upsert": "true"}
     )
 
 

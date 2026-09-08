@@ -1,9 +1,10 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import chat, collector, documents, telemetry
+from app.api.routes import chat, documents, telemetry
 from app.core import db
 from app.core.config import settings
 
@@ -20,7 +21,6 @@ def create_app() -> FastAPI:
         CORSMiddleware, allow_origins=settings.CORS_ORIGINS, allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.include_router(collector.router, prefix=settings.API_V1_STR, tags=["edge"])
     app.include_router(telemetry.router, prefix=settings.API_V1_STR, tags=["telemetry"])
     app.include_router(documents.router, prefix=settings.API_V1_STR, tags=["manuals"])
     app.include_router(chat.router, prefix=settings.API_V1_STR, tags=["copilot"])
@@ -37,7 +37,7 @@ def create_app() -> FastAPI:
                 await conn.fetchval("SELECT 1")
             return {"ok": True}
         except Exception:
-            return {"ok": False}
+            return JSONResponse({"ok": False}, status_code=503)
 
     return app
 

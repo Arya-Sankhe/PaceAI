@@ -1,55 +1,10 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Dict, List, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
-Quality = Literal["good", "uncertain", "bad"]
 Freshness = Literal["live", "stale", "disconnected", "bad_quality", "unknown"]
-
-
-def _as_utc(v: datetime) -> datetime:
-    # ponytail: one guard at the trust boundary — naive edge clocks become UTC instead of 500ing
-    return v.replace(tzinfo=timezone.utc) if isinstance(v, datetime) and v.tzinfo is None else v
-
-
-class SampleIn(BaseModel):
-    sequence: int = Field(ge=0)
-    source_ts: datetime
-    edge_ts: datetime
-    values: Dict[str, float] = Field(max_length=200)
-    quality: Dict[str, Quality] = Field(default_factory=dict, max_length=200)
-
-    @field_validator("source_ts", "edge_ts")
-    @classmethod
-    def _utc_ts(cls, v: datetime) -> datetime:
-        return _as_utc(v)
-
-
-class EventIn(BaseModel):
-    ts: datetime
-    kind: str = Field(max_length=64)  # maps to telemetry_events.event_type
-    severity: Literal["info", "warn", "error", "critical"] = "info"
-    data: Dict = Field(default_factory=dict, max_length=50)
-
-    @field_validator("ts")
-    @classmethod
-    def _utc_ts(cls, v: datetime) -> datetime:
-        return _as_utc(v)
-
-
-class BatchIn(BaseModel):
-    edge_id: UUID
-    boot_id: UUID
-    machine_key: str = Field(max_length=64)
-    schema_version: str = "orion-v1"
-    samples: List[SampleIn] = Field(max_length=500)
-    events: List[EventIn] = Field(default_factory=list, max_length=100)
-
-
-class BatchOut(BaseModel):
-    accepted: int
-    duplicate: bool
 
 
 class MachineOut(BaseModel):
@@ -64,9 +19,10 @@ class StateOut(BaseModel):
     freshness: Freshness
     source_ts: datetime | None = None
     age_seconds: float | None = None
-    values: Dict[str, float] = {}
-    quality: Dict[str, str] = {}
+    values: Dict[str, float] = Field(default_factory=dict)
+    quality: Dict[str, str] = Field(default_factory=dict)
     collector_connected: bool = True
+    source: Literal["dummy", "plc"] = "dummy"
 
 
 class HistoryPoint(BaseModel):
@@ -76,7 +32,7 @@ class HistoryPoint(BaseModel):
 
 class HistoryOut(BaseModel):
     machine_key: str
-    resolution: Literal["raw", "rollup_1m"]
+    resolution: Literal["dummy", "raw", "rollup_1m"]
     points: List[HistoryPoint]
 
 

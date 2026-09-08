@@ -6,14 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
     "lucide-react": "^0.441.0",
-    "next": "14.2.13",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "next": "16.3.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
     "react-markdown": "^9.0.1",
     "remark-gfm": "^4.0.0"
   },

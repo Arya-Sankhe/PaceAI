@@ -12,7 +12,7 @@ Respond as strict JSON: {observed_facts[], hypotheses[{cause,supports,conflicts}
 
 
 def build_user(question: str, machine_key: str, freshness: str, age_s: float | None,
-               values: dict, events: list[dict], pages: list[dict]) -> str:
+               values: dict, events: list[dict], pages: list[dict], data_source: str = "dummy") -> str:
     tel = "\n".join(f"- {k} = {v}" for k, v in sorted(values.items())) or "(no values)"
     ev = "\n".join(f"- {e['ts']} {e['event_type']}/{e['severity']}: {e['data']}" for e in events) or "(none)"
     pg = "\n\n".join(
@@ -20,6 +20,6 @@ def build_user(question: str, machine_key: str, freshness: str, age_s: float | N
         f" type={p['page_type']} subsystem={p['subsystem']}]\n{p['summary'] or ''}\n{(p['extracted_text'] or '')[:3000]}"
         for p in pages
     ) or "(no manual evidence retrieved — say so explicitly)"
-    return (f"<question>{question}</question>\n<machine>{machine_key} freshness={freshness}"
+    return (f"<question>{question}</question>\n<machine>{machine_key} source={data_source} freshness={freshness}"
             f" age_s={age_s}</machine>\n<telemetry>\n{tel}\n</telemetry>\n"
             f"<recent_events>\n{ev}\n</recent_events>\n<manual_excerpts>\n{pg}\n</manual_excerpts>")

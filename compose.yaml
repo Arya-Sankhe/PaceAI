@@ -1,10 +1,10 @@
-# Single-origin MVP: Caddy terminates TLS, web + api behind it, collector on plant net.
+# Dummy-first MVP: Caddy + Next.js + FastAPI + one manual-ingestion worker.
 services:
   caddy:
     image: caddy:2
     ports: ["80:80", "443:443"]
     environment:
-      DOMAIN: ${DOMAIN}
+      DOMAIN: ${DOMAIN:-localhost}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -16,35 +16,44 @@ services:
     build:
       context: ./web
       args:
-        NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+        NEXT_PUBLIC_DEMO_MODE: ${DEMO_MODE:-true}
     environment:
       BACKEND_URL: http://api:8000
-      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL:-}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      NEXT_PUBLIC_DEMO_MODE: ${DEMO_MODE:-true}
     restart: unless-stopped
 
   api:
     build: ./backend
-    env_file: .env
+    environment: &backend-env
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DEBUG: ${DEBUG:-true}
+      DEMO_MODE: ${DEMO_MODE:-true}
+      MOCK_FAULT: ${MOCK_FAULT:-hor_front_temp}
+      MOCK_FAULT_MACHINE: ${MOCK_FAULT_MACHINE:-orion_1}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      SUPABASE_DB_URL: ${SUPABASE_DB_URL:-}
+      SUPABASE_STORAGE_BUCKET_MANUALS: ${SUPABASE_STORAGE_BUCKET_MANUALS:-manual-documents}
+      SUPABASE_STORAGE_BUCKET_PAGES: ${SUPABASE_STORAGE_BUCKET_PAGES:-manual-pages}
+      SUPABASE_JWT_ISSUER: ${SUPABASE_JWT_ISSUER:-}
+      SUPABASE_JWT_JWKS_URL: ${SUPABASE_JWT_JWKS_URL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-gemini-embedding-2}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-1536}
     restart: unless-stopped
 
   worker:
     build: ./backend
     command: ["python", "-m", "app.ingestion.worker"]
-    env_file: .env
-    restart: unless-stopped
-
-  # Plant network only: enable with `docker compose --profile ot up collector`
-  collector:
-    build: ./backend
-    command: ["python", "-m", "collector.edge_collector"]
-    profiles: ["ot"]
-    env_file: collector.env
-    volumes: ["collector_outbox:/srv/outbox"]
+    environment: *backend-env
+    profiles: ["rag"]
     restart: unless-stopped
 
 volumes:
   caddy_data:
   caddy_config:
-  collector_outbox:

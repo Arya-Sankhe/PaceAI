@@ -1,8 +1,6 @@
-"""One-manual-at-a-time ingestion + rollups + retention. Run: python -m app.ingestion.worker."""
+"""One-manual-at-a-time PDF ingestion. Run: python -m app.ingestion.worker."""
 
 import asyncio
-import time
-
 import anyio
 
 from app.core import db, gemini, storage
@@ -12,8 +10,6 @@ from app.ingestion import pdf, profiler
 LEASE_S = 600
 MAX_ATTEMPTS = 5
 IDLE_SLEEP_S = 5
-MAINTENANCE_EVERY_S = 300
-RAW_RETENTION_DAYS = 30
 
 
 async def claim_job(conn):
@@ -44,7 +40,7 @@ async def process_job(conn, job) -> None:
         meta, _warning = await anyio.to_thread.run_sync(profiler.profile_page, png, text)
         # ponytail: sequential embed calls — batch only when quota bills prove it matters
         text_vec = await anyio.to_thread.run_sync(
-            gemini.embed_texts, [f"{meta['summary']}\n{text[:6000]}"]
+            gemini.embed_texts, [f"{meta['summary']}\n{text[:6000]}"], "RETRIEVAL_DOCUMENT"
         )
         img_vec = await anyio.to_thread.run_sync(gemini.embed_image, png)
         path = storage.page_path(str(doc["id"]), num)
@@ -97,42 +93,12 @@ async def fail_job(conn, job, err: str) -> None:
     )
 
 
-async def rollup_and_expire(conn) -> None:
-    """Per-metric 1-minute rollups, then bulk-expire raw samples. Idempotent reruns."""
-    await conn.execute(
-        """INSERT INTO telemetry_rollups_1m
-             (machine_id, bucket, metric_key, min_val, max_val, avg_val, sample_count)
-           SELECT machine_id, date_trunc('minute', source_ts), kv.key,
-                  MIN(kv.value::numeric), MAX(kv.value::numeric),
-                  AVG(kv.value::numeric), COUNT(*)
-           FROM telemetry_samples, LATERAL jsonb_each_text(metrics) kv
-           WHERE source_ts < date_trunc('minute', now())
-             AND kv.value ~ '^-?[0-9]+(\\.[0-9]+)?$'
-             AND NOT EXISTS (
-                 SELECT 1 FROM telemetry_rollups_1m r
-                 WHERE r.machine_id = telemetry_samples.machine_id
-                   AND r.bucket = date_trunc('minute', telemetry_samples.source_ts)
-                   AND r.metric_key = kv.key)
-           GROUP BY 1, 2, 3"""
-    )
-    await conn.execute(
-        "DELETE FROM telemetry_samples WHERE source_ts < now() - make_interval(days => $1)",
-        RAW_RETENTION_DAYS,
-    )
-
-
 async def main() -> None:
     pool = await db.get_pool()
-    last_maintenance = 0.0
     while True:
         async with pool.acquire() as conn:
             job = await claim_job(conn)
         if job is None:
-            if time.time() - last_maintenance > MAINTENANCE_EVERY_S:
-                async with pool.acquire() as mconn:
-                    async with mconn.transaction():
-                        await rollup_and_expire(mconn)
-                last_maintenance = time.time()
             await asyncio.sleep(IDLE_SLEEP_S)
             continue
         try:

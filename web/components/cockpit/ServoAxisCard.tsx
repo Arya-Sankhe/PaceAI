@@ -12,7 +12,7 @@ export function ServoAxisCard({ prefix, label, values }: { prefix: string; label
       </div>
       <div className="flex gap-4 text-sm">
         <span className="text-xl font-semibold">{vel != null ? `${vel.toFixed(0)}` : "—"} <span className="text-xs font-normal text-zinc-500">rpm</span></span>
-        <span className="self-end text-zinc-400">{cur != null ? `${cur.toFixed(1)} A` : ""}</span>
+        <span className="self-end text-zinc-400">{cur != null ? `${cur.toFixed(1)} A` : "—"}</span>
       </div>
     </div>
   );

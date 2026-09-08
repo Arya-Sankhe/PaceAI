@@ -12,7 +12,7 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from app.api.routes.telemetry import freshness  # noqa: E402
-from app.models.schemas import BatchIn, SampleIn  # noqa: E402
+from app.machine_source import source  # noqa: E402
 from collector.dummy import make_sampler  # noqa: E402
 
 
@@ -24,16 +24,10 @@ def test_freshness_states():
     assert freshness(now, None, "good")[0] == "unknown"
 
 
-def test_batch_envelope_rejects_bad_sequence():
-    try:
-        BatchIn(edge_id="00000000-0000-0000-0000-000000000000",
-                boot_id="00000000-0000-0000-0000-000000000000",
-                machine_key="orion_1", samples=[{
-                    "sequence": -1, "source_ts": "2026-09-07T10:00:00Z",
-                    "edge_ts": "2026-09-07T10:00:00Z", "values": {}}])
-        assert False, "negative sequence must fail"
-    except ValueError:
-        pass
+def test_machine_source_fault_is_visible():
+    state = asyncio.run(source.snapshot("orion_1"))
+    assert state["values"]["fault_code"] == 32014.0
+    assert state["values"]["hor_front_output"] == 100.0
 
 
 def test_tags_manifest_allowlist():
@@ -44,12 +38,6 @@ def test_tags_manifest_allowlist():
     keys = {t["key"] for t in m["tags"]}
     assert {"hor_front_temp", "cs_error_id", "fault_code", "count_good"} <= keys
     assert {m["machine_key"] for m in m["machines"]} == {"orion_1", "orion_2"}
-
-
-def test_naive_timestamps_become_utc():
-    s = SampleIn(sequence=0, source_ts="2026-09-07T10:00:00", edge_ts="2026-09-07T10:00:00",
-                 values={"hor_front_temp": 132.4})
-    assert s.source_ts.tzinfo is not None and s.edge_ts.tzinfo is not None
 
 
 def _manifest():
@@ -76,8 +64,7 @@ def test_dummy_fault_drill():
 
 if __name__ == "__main__":
     test_freshness_states()
-    test_batch_envelope_rejects_bad_sequence()
-    test_naive_timestamps_become_utc()
+    test_machine_source_fault_is_visible()
     test_tags_manifest_allowlist()
     test_dummy_matches_manifest_keys()
     test_dummy_fault_drill()

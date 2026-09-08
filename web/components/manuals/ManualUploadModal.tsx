@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Upload } from "lucide-react";
 import { api } from "@/lib/api";
 
-export function ManualUploadModal({ onDone }: { onDone: () => void }) {
+export function ManualUploadModal({ onDone }: { onDone: (upload: { document_id: string; job_id: string }) => void }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -14,11 +14,11 @@ export function ManualUploadModal({ onDone }: { onDone: () => void }) {
     setBusy(true); setErr("");
     try {
       const fd = new FormData(e.currentTarget);
-      await api.upload(fd);
+      const upload = await api.upload(fd);
       setOpen(false);
-      onDone();
-    } catch {
-      setErr("Upload failed (PDF ≤ 100MB, admin only).");
+      onDone(upload);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Upload failed (PDF ≤ 100MB, admin only).");
     } finally {
       setBusy(false);
     }
