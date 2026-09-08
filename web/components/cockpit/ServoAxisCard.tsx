@@ -1,7 +1,7 @@
 export function ServoAxisCard({ prefix, label, values }: { prefix: string; label: string; values: Record<string, number> }) {
-  const vel = values[`${prefix}_vel`];
-  const cur = values[`${prefix}_cur`];
-  const err = values[`${prefix}_err`];
+  const vel = values[`${prefix}_rpm`];
+  const cur = values[`${prefix}_current`];
+  const err = values[`${prefix}_error_id`];
   return (
     <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
       <div className="mb-2 flex items-center justify-between">

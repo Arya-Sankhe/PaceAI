@@ -1,5 +1,9 @@
 """Outbound-only edge collector. Reads OPC UA, buffers in SQLite, POSTs batches.
 
+SOURCE=dummy (default) replays vendored PLC grabs with generate.py physics —
+same keys as the live PLC, so downstream can't tell the difference.
+SOURCE=plc connects to the real B&R runtime (needs PLC_URL_* + certs).
+
 Read-only by construction: only read_values() exists here — no write/method call.
 The VPS never dials in; all traffic is collector-initiated HTTPS.
 """
@@ -126,20 +130,27 @@ def _opc_client(url: str):
 
 
 async def read_snapshot(client, nodes: dict) -> tuple[dict, dict]:
-    """Single batched read. Returns (values, quality). Read-only: read_values only."""
+    """Single batched read with per-node fallback. Read-only: reads only, never writes."""
     from asyncua import ua
 
     keys = list(nodes)
     try:
-        data = await client.read_values([nodes[k] for k in keys])
-    except Exception as e:  # noqa: BLE001 — PLC hiccup, next tick retries
-        log.warning("opc read failed: %s", e)
-        return {}, {}
+        data = list(zip(keys, await client.read_values([nodes[k] for k in keys])))
+    except Exception as e:  # noqa: BLE001 — one bad node (e.g. ::TBD:) must not kill the batch
+        log.warning("opc batch read failed, falling back per-node: %s", e)
+        data = []
+        for k in keys:
+            try:
+                data.append((k, await nodes[k].read_value()))
+            except Exception:
+                data.append((k, None))
     values, quality = {}, {}
-    for k, dv in zip(keys, data):
+    for k, dv in data:
         v = dv.Value.Value if isinstance(dv, ua.DataValue) else dv
-        if isinstance(v, bool):  # running/intol flags ride as 1.0/0.0 (server values are float)
+        if isinstance(v, bool):  # running/tol flags ride as 1.0/0.0 (server values are float)
             values[k], quality[k] = float(v), "good"
+        elif v is None:
+            quality[k] = "bad"
         else:
             try:
                 values[k], quality[k] = float(v), "good"
@@ -187,6 +198,20 @@ async def amain() -> None:
     manifest = load_manifest(os.environ.get("TAGS_MANIFEST", "config/tags.yaml"))
     api = os.environ["PACE_API"]; edge_id = os.environ["EDGE_ID"]; secret = os.environ["EDGE_SECRET"]
     outbox = Outbox(os.environ.get("OUTBOX_PATH", "outbox.db"))
+    source = os.environ.get("SOURCE", "dummy")
+
+    if source == "dummy":
+        from collector.dummy import make_sampler
+
+        fixtures = os.environ.get("FIXTURES_DIR", os.path.join(os.path.dirname(__file__), "fixtures"))
+        read_once = make_sampler(manifest, fixtures, fault=os.environ.get("MOCK_FAULT", ""))
+        log.info("SOURCE=dummy: replaying fixtures/%s (MOCK_FAULT=%s)",
+                 os.path.basename(fixtures), os.environ.get("MOCK_FAULT", ""))
+        await run_loop(manifest, api, edge_id, secret, outbox, read_once)
+        return
+
+    if source != "plc":
+        raise SystemExit(f"unknown SOURCE={source!r} (want dummy|plc)")
     plc_urls = {m["machine_key"]: os.environ[f"PLC_URL_{m['machine_key'].upper()}"]
                 for m in manifest["machines"]}
 
@@ -194,10 +219,9 @@ async def amain() -> None:
     for mk, url in plc_urls.items():
         client = _opc_client(url)
         await client.connect()
-        nodes = {t["key"]: client.get_node(f"ns=6;s={t['node']}")
-                 for t in manifest["tags"]}
+        nodes = {t["key"]: client.get_node(t["node"]) for t in manifest["tags"]}
         clients[mk] = (client, nodes)
-    log.info("connected: %s (outbox depth %d)", list(clients), outbox.depth())
+    log.info("SOURCE=plc connected: %s (outbox depth %d)", list(clients), outbox.depth())
 
     async def read_once():
         return {mk: await read_snapshot(client, nodes) for mk, (client, nodes) in clients.items()}

@@ -2,8 +2,8 @@
 export function HeaterZoneCard({ prefix, label, values }: { prefix: string; label: string; values: Record<string, number> }) {
   const temp = values[`${prefix}_temp`];
   const set = values[`${prefix}_set`];
-  const out = values[`${prefix}_out`];
-  const intol = values[`${prefix}_intol`];
+  const out = values[`${prefix}_output`];
+  const intol = values[`${prefix}_tol`];
   const pct = out != null ? Math.min(100, Math.max(0, out)) : 0;
   return (
     <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">

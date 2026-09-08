@@ -149,6 +149,20 @@ Authentication is a random per-collector bearer secret stored hashed in PostgreS
 
 `tags.yaml` is version-controlled and includes machine key, OPC UA node ID, expected type/unit/range, sampling class, and display name. A collector refuses to start an unknown manifest version or duplicate node mapping. Physical sensor offsets and scaling remain configurable because field hardware needs calibration.
 
+### 4.1.1 Dummy source for testing (real ↔ dummy switch)
+
+The collector runs on dummy data unless explicitly switched to the live PLC. One environment variable selects the source; everything downstream (outbox, ingest API, cockpit, history, copilot) is identical either way, so testing exercises the real pipeline:
+
+| `SOURCE` | Behavior |
+|---|---|
+| `dummy` (default) | Replays vendored PLC grabs (`collector/fixtures/snapshot_orion_{1,2}.json` — real snapshots in plc-dashboard field names) animated with generate.py physics. No PLC, certs, or plant network required. |
+| `plc` | Connects to the live B&R runtime via `PLC_URL_ORION_1/2` with the read-only identity and `EDGE_CERT`/`EDGE_KEY`. Any other value refuses to start. |
+
+- Dummy emits only manifest tag keys as floats, so dummy and PLC batches are indistinguishable after the collector boundary.
+- `MOCK_FAULT=hor_front_temp` pins the front heater cold (saturated output, tolerance lost, fault `32014`) for a reproducible diagnostic drill.
+- `python -m collector.seed_history [hours]` backfills N hours of past-timestamped dummy history through the real ingest API for charts, rollups, and copilot evaluation without waiting. The legacy `python -m collector.mock_edge` command remains as a thin alias for `SOURCE=dummy`.
+- Dummy mode never weakens the invariants: batches stay idempotent, timestamps stay UTC with provenance, and no write path appears.
+
 ### 4.2 API
 
 FastAPI is the only application data boundary. It:

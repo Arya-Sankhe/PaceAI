@@ -3,6 +3,8 @@ services:
   caddy:
     image: caddy:2
     ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -11,7 +13,11 @@ services:
     depends_on: [web, api]
 
   web:
-    build: ./web
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
     environment:
       BACKEND_URL: http://api:8000
       NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
