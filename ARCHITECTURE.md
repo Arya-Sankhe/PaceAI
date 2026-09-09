@@ -67,7 +67,7 @@ The real PLC is a future replacement for the dummy source, not an MVP dependency
 | Authentication | Supabase Auth |
 | Files | Supabase private Storage, short-lived signed URLs |
 | Embeddings | Gemini `gemini-embedding-2`, one pinned dimension |
-| Generation | Configured Gemini model returning JSON |
+| Generation | Configured Gemini model returning JSON, at the GEMINI_SERVICE_TIER tier |
 | PDF | Existing `pypdfium2`/`pypdf` path |
 | Background work | One small Python worker polling `ingestion_jobs` |
 | Runtime | Docker Compose: `web`, `api`, and one manual `worker` |
@@ -257,6 +257,8 @@ The model returns JSON with:
 ```
 
 The API rejects malformed output, removes citations outside the retrieved allowlist, and fails closed with a stable `diagnostic_unavailable` response. The answer must describe hypotheses, not assert an unverified root cause. It must never issue a PLC write or unsafe control instruction.
+
+All `GenerateContent` calls (diagnosis here and page profiling in §7) use `GEMINI_SERVICE_TIER` (default `standard`; set `flex` for 50% off at slower best-effort latency). Embeddings are unaffected — `embedContent` has no tier. There is no automatic fallback to Standard: a shed Flex request fails that attempt, absorbed by the worker's job retries for ingestion or the single generation retry here, which still fails closed to `diagnostic_unavailable`.
 
 ## 9. Completion criteria
 

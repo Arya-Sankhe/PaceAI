@@ -43,6 +43,7 @@ services:
       SUPABASE_JWT_JWKS_URL: ${SUPABASE_JWT_JWKS_URL:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      GEMINI_SERVICE_TIER: ${GEMINI_SERVICE_TIER:-standard}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-gemini-embedding-2}
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-1536}
     restart: unless-stopped

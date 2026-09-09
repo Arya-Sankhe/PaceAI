@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     # Gemini API
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-3.8-flash"
+    GEMINI_SERVICE_TIER: str = "standard"
     EMBEDDING_MODEL: str = "gemini-embedding-2"
     EMBEDDING_DIMENSION: int = 1536
     
@@ -46,6 +47,14 @@ class Settings(BaseSettings):
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",") if i.strip()]
         return v
+
+    @field_validator("GEMINI_SERVICE_TIER", mode="before")
+    @classmethod
+    def normalize_service_tier(cls, v: str) -> str:
+        tier = str(v or "standard").lower()
+        if tier not in ("standard", "flex", "priority"):
+            raise ValueError(f"GEMINI_SERVICE_TIER must be standard, flex, or priority (got {v!r})")
+        return tier
 
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),

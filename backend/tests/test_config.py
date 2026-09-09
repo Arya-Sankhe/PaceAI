@@ -20,9 +20,24 @@ def test_development_allows_defaults():
     assert s.EMBEDDING_DIMENSION == 1536
     assert s.EMBEDDING_MODEL == "gemini-embedding-2"
     assert s.GEMINI_MODEL == "gemini-3.8-flash"
+    assert s.GEMINI_SERVICE_TIER == "standard"
     assert s.ENVIRONMENT == "development"
+
+def test_service_tier_accepts_known_tiers():
+    assert Settings(GEMINI_SERVICE_TIER="flex").GEMINI_SERVICE_TIER == "flex"
+    assert Settings(GEMINI_SERVICE_TIER="Flex").GEMINI_SERVICE_TIER == "flex"
+    assert Settings(GEMINI_SERVICE_TIER="priority").GEMINI_SERVICE_TIER == "priority"
+
+def test_service_tier_rejects_unknown_tiers():
+    try:
+        Settings(GEMINI_SERVICE_TIER="ultra")
+        assert False, "Should have raised ValueError for unknown tier"
+    except ValueError as e:
+        assert "GEMINI_SERVICE_TIER" in str(e)
 
 if __name__ == "__main__":
     test_production_fails_without_secrets()
     test_development_allows_defaults()
+    test_service_tier_accepts_known_tiers()
+    test_service_tier_rejects_unknown_tiers()
     print("Baseline config assertions passed.")

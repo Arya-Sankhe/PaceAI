@@ -47,6 +47,7 @@ def generate_json(
     prompt: str,
     image_png: bytes | list[bytes] | None = None,
     system_instruction: str | None = None,
+    service_tier: str | None = None,
 ) -> str:
     """Returns raw JSON text; parsing/validation lives with the caller."""
     from google.genai import types
@@ -62,12 +63,14 @@ def generate_json(
         config=types.GenerateContentConfig(
             response_mime_type="application/json", temperature=0.1,
             system_instruction=system_instruction,
+            service_tier=service_tier or settings.GEMINI_SERVICE_TIER,
         ),
     )
     return res.text or "{}"
 
 
 def generate_json_multi(
-    prompt: str, images: list[bytes], system_instruction: str | None = None
+    prompt: str, images: list[bytes], system_instruction: str | None = None,
+    service_tier: str | None = None,
 ) -> str:
-    return generate_json(prompt, images or None, system_instruction=system_instruction)
+    return generate_json(prompt, images or None, system_instruction, service_tier)
