@@ -1,4 +1,4 @@
-"""Gemini synthesis with citation allowlist validation. Retry once, then stable error."""
+"""Gemini synthesis with citation allowlist validation. Tier fallback, then stable error."""
 
 import json
 import time
@@ -6,6 +6,7 @@ import time
 import anyio
 
 from app.core import gemini
+from app.core.config import settings
 from app.copilot import prompt
 
 REQUIRED = ("observed_facts", "hypotheses", "next_checks", "safety_warning",
@@ -79,15 +80,21 @@ def validate(answer: dict, allowed_ids: set[str], allowed_pages: list[dict] | No
 
 
 async def generate(user_prompt: str, images: list[bytes]) -> tuple[dict, dict]:
-    """Returns (answer, meta{latency_ms}). Raises DiagnosticError after one identical retry."""
+    """Returns (answer, meta{latency_ms}). Tries the configured tier first, then
+    Standard on any failure (a shed Flex request is retried on Standard); fails
+    closed only if both miss. Same two-attempt budget as the old identical retry."""
     t0 = time.time()
+    configured = settings.GEMINI_SERVICE_TIER
+    tiers = [configured, "standard"] if configured != "standard" else ["standard", "standard"]
     last: Exception | None = None
-    for _ in range(2):
+    for tier in tiers:
         try:
             raw = await anyio.to_thread.run_sync(
-                gemini.generate_json_multi, user_prompt, images, prompt.SYSTEM
+                gemini.generate_json_multi, user_prompt, images, prompt.SYSTEM, tier,
             )
             return json.loads(raw), {"latency_ms": int((time.time() - t0) * 1000)}
-        except Exception as e:  # noqa: BLE001 — retry once with identical evidence, then fail closed
+        except Exception as e:  # noqa: BLE001 — shed, timeout, or invalid JSON
             last = e
+            if tier != "standard":
+                print(f"copilot tier_fallback from={tier} err={type(e).__name__}")
     raise DiagnosticError(f"bad_model_output: {type(last).__name__}")

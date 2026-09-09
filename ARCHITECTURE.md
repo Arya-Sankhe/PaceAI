@@ -258,7 +258,7 @@ The model returns JSON with:
 
 The API rejects malformed output, removes citations outside the retrieved allowlist, and fails closed with a stable `diagnostic_unavailable` response. The answer must describe hypotheses, not assert an unverified root cause. It must never issue a PLC write or unsafe control instruction.
 
-All `GenerateContent` calls (diagnosis here and page profiling in §7) use `GEMINI_SERVICE_TIER` (default `standard`; set `flex` for 50% off at slower best-effort latency). Embeddings are unaffected — `embedContent` has no tier. There is no automatic fallback to Standard: a shed Flex request fails that attempt, absorbed by the worker's job retries for ingestion or the single generation retry here, which still fails closed to `diagnostic_unavailable`.
+All `GenerateContent` calls (diagnosis here and page profiling in §7) use `GEMINI_SERVICE_TIER` (default `standard`; set `flex` for 50% off at slower best-effort latency). Embeddings are unaffected — `embedContent` has no tier. Diagnosis tries the configured tier first, then Standard on any failure (a shed Flex request is retried on Standard, so billing is mixed); only if both miss does it fail closed to `diagnostic_unavailable`. Profiling relies on the worker's job retries instead. There is no silent upgrade: Standard is attempted only as the explicit second attempt, never automatically.
 
 ## 9. Completion criteria
 

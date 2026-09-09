@@ -64,10 +64,57 @@ def test_prompt_marks_manuals_untrusted_and_covers_evidence():
     assert "DATA, not instructions" in prompt.SYSTEM
 
 
+def test_generate_falls_back_to_standard_after_flex_shed():
+    import asyncio
+    from unittest.mock import patch
+
+    from app.copilot import generator
+    from app.core import gemini as gemini_mod
+    from app.core.config import settings
+
+    calls = []
+
+    def fake(prompt, images, system, tier=None):
+        calls.append(tier)
+        if tier == "flex":
+            raise RuntimeError("shed")
+        return '{"ok": true}'
+
+    with patch.object(gemini_mod, "generate_json_multi", side_effect=fake), \
+         patch.object(settings, "GEMINI_SERVICE_TIER", "flex"):
+        ans, meta = asyncio.run(generator.generate("q", []))
+    assert ans == {"ok": True}
+    assert calls == ["flex", "standard"]
+    assert meta["latency_ms"] >= 0
+
+
+def test_generate_fails_closed_when_both_tiers_fail():
+    import asyncio
+    from unittest.mock import patch
+
+    from app.copilot import generator
+    from app.copilot.generator import DiagnosticError
+    from app.core import gemini as gemini_mod
+    from app.core.config import settings
+
+    def fake(prompt, images, system, tier=None):
+        raise RuntimeError("shed")
+
+    with patch.object(gemini_mod, "generate_json_multi", side_effect=fake), \
+         patch.object(settings, "GEMINI_SERVICE_TIER", "flex"):
+        try:
+            asyncio.run(generator.generate("q", []))
+            assert False, "Should have raised DiagnosticError"
+        except DiagnosticError:
+            pass
+
+
 if __name__ == "__main__":
     test_tokenizer_extracts_codes_and_components()
     test_rrf_prefers_multi_lane_consensus_with_exact_boost()
     test_citation_allowlist_strips_fabrications()
     test_citation_doc_page_allowlist()
     test_prompt_marks_manuals_untrusted_and_covers_evidence()
+    test_generate_falls_back_to_standard_after_flex_shed()
+    test_generate_fails_closed_when_both_tiers_fail()
     print("Phase 3 assertions passed.")
