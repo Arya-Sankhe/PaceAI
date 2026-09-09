@@ -36,7 +36,9 @@ def test_tags_manifest_allowlist():
     nodes = [t["node"] for t in m["tags"]]
     assert len(set(nodes)) == len(nodes), "duplicate node mapping"
     keys = {t["key"] for t in m["tags"]}
-    assert {"hor_front_temp", "cs_error_id", "fault_code", "count_good"} <= keys
+    assert {"hor_front_temp", "cs_error_id", "fault_code", "count_good",
+            "heater_on", "bx_temp", "vs_powered_on", "poker_active",
+            "prod_remaining", "util_0", "pdt_0", "udt_0", "web_roll_center"} <= keys
     assert {m["machine_key"] for m in m["machines"]} == {"orion_1", "orion_2"}
 
 
@@ -48,10 +50,13 @@ def test_dummy_matches_manifest_keys():
     m = _manifest()
     out = asyncio.run(make_sampler(m, str(BACKEND_DIR / "collector/fixtures"))())
     tag_keys = {t["key"] for t in m["tags"]}
-    for _mk, (values, quality) in out.items():
+    for _mk, packed in out.items():
+        values, quality, info, titles = packed
         assert set(values) == tag_keys
         assert all(isinstance(v, float) for v in values.values())
         assert set(quality.values()) == {"good"}
+        assert {"model", "serial", "ip_address"} <= set(info)
+        assert titles["planned_dt"] and titles["unplanned_dt"]
 
 
 def test_dummy_fault_drill():
@@ -60,6 +65,8 @@ def test_dummy_fault_drill():
                                    fault="hor_front_temp")())["orion_1"][0]
     assert out["hor_front_temp"] < 100 and out["hor_front_output"] == 100.0
     assert out["hor_front_tol"] == 0.0 and out["fault_code"] == 32014.0
+    assert out["heater_on"] == 1.0 and out["alarm_count"] == 1.0
+    assert out["hor_front_heater_on"] == 1.0
 
 
 if __name__ == "__main__":

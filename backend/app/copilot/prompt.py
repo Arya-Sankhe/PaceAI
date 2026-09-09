@@ -12,8 +12,11 @@ Respond as strict JSON: {observed_facts[], hypotheses[{cause,supports,conflicts}
 
 
 def build_user(question: str, machine_key: str, freshness: str, age_s: float | None,
-               values: dict, events: list[dict], pages: list[dict], data_source: str = "dummy") -> str:
+               values: dict, events: list[dict], pages: list[dict], data_source: str = "dummy",
+               info: dict | None = None, titles: dict | None = None) -> str:
     tel = "\n".join(f"- {k} = {v}" for k, v in sorted(values.items())) or "(no values)"
+    inf = "\n".join(f"- {k} = {v}" for k, v in sorted((info or {}).items()) if v) or "(none)"
+    tit = "\n".join(f"- {k}: {', '.join(v)}" for k, v in (titles or {}).items() if v) or "(none)"
     ev = "\n".join(f"- {e['ts']} {e['event_type']}/{e['severity']}: {e['data']}" for e in events) or "(none)"
     pg = "\n\n".join(
         f"[page id={p['id']} doc={p['document_id']} rev={p['revision']} n={p['page_number']}"
@@ -22,4 +25,5 @@ def build_user(question: str, machine_key: str, freshness: str, age_s: float | N
     ) or "(no manual evidence retrieved — say so explicitly)"
     return (f"<question>{question}</question>\n<machine>{machine_key} source={data_source} freshness={freshness}"
             f" age_s={age_s}</machine>\n<telemetry>\n{tel}\n</telemetry>\n"
+            f"<machine_info>\n{inf}\n</machine_info>\n<oee_titles>\n{tit}\n</oee_titles>\n"
             f"<recent_events>\n{ev}\n</recent_events>\n<manual_excerpts>\n{pg}\n</manual_excerpts>")

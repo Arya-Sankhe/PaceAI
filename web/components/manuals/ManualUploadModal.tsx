@@ -26,24 +26,24 @@ export function ManualUploadModal({ onDone }: { onDone: (upload: { document_id: 
 
   if (!open)
     return (
-      <button onClick={() => setOpen(true)} className="flex items-center gap-2 rounded bg-emerald-600 px-3 py-2 text-sm font-medium">
-        <Upload size={16} /> Upload manual
+      <button onClick={() => setOpen(true)} className="flex items-center gap-2 rounded-full bg-[#1d1d1f] px-4 py-2 text-[13.5px] font-medium text-white">
+        <Upload size={15} aria-hidden="true" /> Upload manual
       </button>
     );
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <form onSubmit={submit} className="w-96 space-y-3 rounded-lg border border-zinc-700 bg-zinc-900 p-5">
-        <h2 className="font-semibold">Upload manual (admin)</h2>
-        <input name="title" required placeholder="Title" className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <form onSubmit={submit} className="card w-96 space-y-3 p-6">
+        <h2 className="font-display text-[16px] font-semibold tracking-tight">Upload manual</h2>
+        <input name="title" required placeholder="Title" className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none placeholder:text-[#6e6e73] focus:border-[#0071e3]" />
         <div className="flex gap-2">
-          <input name="family_key" required placeholder="family_key" className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm" />
-          <input name="revision" placeholder="revision" className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm" />
+          <input name="family_key" required placeholder="family_key" className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none placeholder:text-[#6e6e73] focus:border-[#0071e3]" />
+          <input name="revision" placeholder="revision" className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none placeholder:text-[#6e6e73] focus:border-[#0071e3]" />
         </div>
         <input name="file" type="file" accept=".pdf" required className="text-sm" />
-        {err && <p className="text-sm text-red-300">{err}</p>}
+        {err && <p className="text-sm text-[#d70015]">{err}</p>}
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={() => setOpen(false)} className="px-3 py-1 text-sm text-zinc-400">Cancel</button>
-          <button disabled={busy} className="rounded bg-emerald-600 px-3 py-1 text-sm disabled:opacity-50">
+          <button type="button" onClick={() => setOpen(false)} className="px-3 py-1.5 text-sm text-[#515154]">Cancel</button>
+          <button disabled={busy} className="rounded-full bg-[#1d1d1f] px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50">
             {busy ? "Uploading…" : "Upload"}
           </button>
         </div>

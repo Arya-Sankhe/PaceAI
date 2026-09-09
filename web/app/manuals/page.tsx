@@ -28,32 +28,42 @@ export default function ManualsPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <header className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Manual library</h1>
-        <ManualUploadModal onDone={uploaded} />
+    <div className="space-y-5">
+      <header className="flex flex-wrap items-center gap-3">
+        <div>
+          <h1 className="font-display text-[26px] font-semibold tracking-tight">Manuals</h1>
+          <p className="mt-1 text-[13.5px] text-[#6e6e73]">The knowledge the assistant cites in its answers.</p>
+        </div>
+        <div className="ml-auto"><ManualUploadModal onDone={uploaded} /></div>
       </header>
-      {notice && <p className="rounded border border-emerald-500/40 bg-emerald-500/10 p-2 text-sm text-emerald-200">{notice}</p>}
-      {error && <p className="rounded border border-red-500/40 bg-red-500/10 p-2 text-sm text-red-200">{error}</p>}
-      <table className="w-full text-sm">
-        <thead><tr className="text-left text-zinc-500">
-          <th className="py-1">Title</th><th>Revision</th><th>Pages</th><th>Status</th>
-        </tr></thead>
-        <tbody>
-          {docs.map((d) => (
-            <tr key={d.id} className="border-t border-zinc-800">
-              <td className="py-2">
-                <Link href={`/manuals/${d.id}/1`} className="text-sky-300">{d.title}</Link>
-              </td>
-              <td className="text-zinc-400">{d.revision}</td>
-              <td className="text-zinc-400">{d.total_pages}</td>
-              <td>{d.status}</td>
+      {notice && <p className="rounded-2xl bg-[#1d8127]/10 p-3.5 text-sm text-[#1d8127]">{notice}</p>}
+      {error && <p className="rounded-2xl bg-[#d70015]/[0.06] p-3.5 text-sm text-[#d70015]">{error}</p>}
+      <div className="card overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-[12px] font-medium uppercase tracking-[0.06em] text-[#6e6e73]">
+              <th className="px-5 py-3">Title</th>
+              <th className="px-3 py-3">Revision</th>
+              <th className="px-3 py-3">Pages</th>
+              <th className="px-5 py-3 text-right">Status</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      {loading && <p className="text-sm text-zinc-500">Loading manuals…</p>}
-      {!loading && docs.length === 0 && <p className="text-sm text-zinc-500">No ready manuals yet.</p>}
+          </thead>
+          <tbody className="divide-y divide-black/[0.05]">
+            {docs.map((d) => (
+              <tr key={d.id}>
+                <td className="px-5 py-3">
+                  <Link href={`/manuals/${d.id}/1`} className="font-medium text-[#0071e3]">{d.title}</Link>
+                </td>
+                <td className="px-3 py-3 text-[#515154]">{d.revision}</td>
+                <td className="px-3 py-3 tabular text-[#515154]">{d.total_pages}</td>
+                <td className="px-5 py-3 text-right text-[#515154]">{d.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {loading && <p className="text-sm text-[#6e6e73]">Loading manuals…</p>}
+      {!loading && docs.length === 0 && <p className="text-sm text-[#6e6e73]">No manuals yet. Upload one to ground the assistant.</p>}
     </div>
   );
 }

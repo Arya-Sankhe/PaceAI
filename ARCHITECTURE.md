@@ -29,7 +29,7 @@ The real PLC is a future replacement for the dummy source, not an MVP dependency
 ### 2.1 Build now
 
 - One web application; local demo mode skips login, while deployed mode uses Supabase Auth.
-- A small machine cockpit showing current dummy values, freshness, and basic events.
+- A machine cockpit showing every plc-dashboard parameter (heaters, drives, OEE, I/O, identity), freshness, and basic events.
 - A dummy data source with configurable parameters and reproducible faults.
 - Manual PDF upload, page extraction, Gemini page metadata, and Gemini text/image embeddings.
 - Supabase Postgres with `pgvector` and full-text search.
@@ -80,7 +80,7 @@ Keep model IDs, embedding dimension, and prompt version in configuration. Do not
 
 The browser uses Supabase Auth for login and same-origin FastAPI routes for application data. It shows:
 
-- current machine values and freshness;
+- current machine values (full plc-dashboard parameter set) and freshness;
 - a small history view;
 - recent events;
 - uploaded manual pages; and
@@ -136,7 +136,7 @@ The worker exists only because PDF rendering and Gemini calls are slow. It claim
 
 ## 5. Normalized dummy machine data
 
-The source emits one JSON snapshot per machine:
+The source emits one JSON snapshot per machine. Numeric PLC tags stay in `values` as floats (bools as `0.0`/`1.0`). String identity and axis error text live in `info`. OEE downtime labels live in `titles` because the PLC sorts those arrays by count.
 
 ```json
 {
@@ -144,28 +144,24 @@ The source emits one JSON snapshot per machine:
   "source_ts": "2026-09-08T10:00:00Z",
   "values": {
     "hor_front_temp": 175.2,
-    "hor_front_set": 180.0,
-    "hor_front_output": 86.0,
-    "hor_front_tol": 0.0,
-    "servo_main_rpm": 42.0,
-    "servo_main_current": 5.8,
+    "heater_on": 1.0,
+    "bx_temp": 37.1,
+    "vs_powered_on": 1.0,
+    "prod_remaining": 14341.0,
+    "util_0": 8443.0,
+    "poker_active": 0.0,
     "running": 1.0,
     "fault_code": 32014.0
   },
-  "quality": {"hor_front_temp": "good", "fault_code": "good"}
+  "quality": {"hor_front_temp": "good", "fault_code": "good"},
+  "info": {"model": "4PPC80.121E-10A", "serial": "F9E40168741", "ip_address": "192.168.213.1"},
+  "titles": {"planned_dt": ["Setup", "Roll Change"], "unplanned_dt": ["Fault", "Air Pressure Error"]}
 }
 ```
 
-The exact tag list stays in the existing manifest/fixture files. Keep the payload small and stable: `machine_key`, timestamp, values, quality, and optional event list.
+The exact tag list is `backend/collector/config/tags.yaml`. It matches `plc-dashboard/server.py` `NODES` (machine, heaters, drives, OEE, I/O), with OEE arrays flattened as `util_0..6`, `pdt_0..22`, `udt_0..10`. Four production extras remain `::TBD:` until verified on site: `count_good`, `count_bad`, `running`, `fault_code`. String OPC fields (`model`, `serial`, `error_text`, title arrays) are not floats, so they travel beside `values` rather than inside it.
 
-Dummy parameters should cover only what the UI and diagnostic demo need:
-
-- machine key and sample interval;
-- heater setpoints and temperature noise;
-- line speed/current noise; and
-- a fault switch.
-
-The first reproducible fault is `MOCK_FAULT=hor_front_temp`: the front heater remains below setpoint, output saturates, and a fault code/event appears. A changed parameter must visibly change the cockpit and the answer. No fake physics engine is needed.
+Dummy animation is seeded from the real PLC grab fixtures and covers the same groups the cockpit renders. The first reproducible fault is `MOCK_FAULT=hor_front_temp`: the front heater remains below setpoint, output saturates, zone heater stays on, `alarm_count` and `fault_code` rise, and a fault event appears. A changed parameter must visibly change the cockpit and the answer. No fake physics engine is needed.
 
 Freshness is simple: the API computes age from `source_ts`; current values are `live` when recent, `stale` when old, `bad_quality` when marked bad, and `unknown` when absent. The UI must not replace missing data with zero.
 
@@ -294,7 +290,7 @@ Do not add any deferred item to the MVP merely because the final product may nee
 Keep implementation names unsurprising:
 
 ```text
-web/                         Next.js cockpit, manuals, and chat
+web/                         Next.js cockpit (full PLC parameter set), manuals, and chat
 backend/app/api/routes/      FastAPI routes
 backend/app/copilot/         retrieval, prompt, Gemini response validation
 backend/app/ingestion/       PDF/page worker

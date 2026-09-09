@@ -1,6 +1,6 @@
 # Signed tag manifest. Cloud never sends node IDs — this file is the allowlist.
-# Keys match plc-dashboard's real OPC UA field names, so dummy fixtures and the
-# live PLC are interchangeable downstream. Node IDs copied from plc-dashboard/server.py NODES.
+# Keys match plc-dashboard OPC UA field names. Array nodes are flattened with [i]
+# so dummy fixtures and the live PLC stay interchangeable downstream.
 # `::TBD:` nodes have no single real counterpart yet — verified per-node reads keep them harmless.
 manifest_version: orion-v1
 supported_by_collector: [orion-v1]
@@ -13,48 +13,135 @@ machines:
 defaults: {type: Float, q Good: true}
 
 tags:
-  # — 4 PID heater zones (per machine) —
-  - {key: hor_front_temp,   node: "ns=6;s=::AsGlobalPV:AnaTemp.HorFront",               unit: °C, class: fast}
-  - {key: hor_front_set,    node: "ns=6;s=::AsGlobalPV:gTempPar.Front.SetTemp",         unit: °C, class: slow}
-  - {key: hor_front_output, node: "ns=6;s=::AsGlobalPV:gTempStatus.Front.HeatOutputInPer", unit: "%", class: fast, range: [0, 100]}
-  - {key: hor_front_tol,    node: "ns=6;s=::AsGlobalPV:gTempStatus.Front.ZoneInTol",    type: Bool, class: event}
-  - {key: hor_rear_temp,    node: "ns=6;s=::AsGlobalPV:AnaTemp.HorRear",                unit: °C, class: fast}
-  - {key: hor_rear_set,     node: "ns=6;s=::AsGlobalPV:gTempPar.Rear.SetTemp",          unit: °C, class: slow}
-  - {key: hor_rear_output,  node: "ns=6;s=::AsGlobalPV:gTempStatus.Rear.HeatOutputInPer",  unit: "%", class: fast, range: [0, 100]}
-  - {key: hor_rear_tol,     node: "ns=6;s=::AsGlobalPV:gTempStatus.Rear.ZoneInTol",     type: Bool, class: event}
-  - {key: vert1_temp,       node: "ns=6;s=::AsGlobalPV:AnaTemp.Vertical1",              unit: °C, class: fast}
-  - {key: vert1_set,        node: "ns=6;s=::AsGlobalPV:gTempPar.Vertical1.SetTemp",     unit: °C, class: slow}
-  - {key: vert1_output,     node: "ns=6;s=::AsGlobalPV:gTempStatus.Vertical1.HeatOutputInPer", unit: "%", class: fast, range: [0, 100]}
-  - {key: vert1_tol,        node: "ns=6;s=::AsGlobalPV:gTempStatus.Vertical1.ZoneInTol", type: Bool, class: event}
-  - {key: vert2_temp,       node: "ns=6;s=::AsGlobalPV:AnaTemp.Vertical2",              unit: °C, class: fast}
-  - {key: vert2_set,        node: "ns=6;s=::AsGlobalPV:gTempPar.Vertical2.SetTemp",     unit: °C, class: slow}
-  - {key: vert2_output,     node: "ns=6;s=::AsGlobalPV:gTempStatus.Vertical2.HeatOutputInPer", unit: "%", class: fast, range: [0, 100]}
-  - {key: vert2_tol,        node: "ns=6;s=::AsGlobalPV:gTempStatus.Vertical2.ZoneInTol", type: Bool, class: event}
+  # — machine identity / server —
+  - {key: server_state,    node: "i=2259",                                              type: DInt, class: event}
+  - {key: alarm_count,     node: "ns=6;s=::VisuCtrl:iVa_AlarmActivePulseCnt",           type: UDInt, class: event}
+  - {key: web_roll_center, node: "ns=6;s=::AuxCtrl:iVa_WebRollCenterPosnDisplay",       unit: mm, class: slow}
+
+  # — PID heaters —
+  - {key: heater_on,            node: "ns=6;s=::AsGlobalPV:gTempPar.HeaterOffOn",                 type: Bool, class: event}
+  - {key: hor_front_temp,       node: "ns=6;s=::AsGlobalPV:AnaTemp.HorFront",                     unit: °C, class: fast}
+  - {key: hor_front_set,        node: "ns=6;s=::AsGlobalPV:gTempPar.Front.SetTemp",               unit: °C, class: slow}
+  - {key: hor_front_output,     node: "ns=6;s=::AsGlobalPV:gTempStatus.Front.HeatOutputInPer",    unit: "%", class: fast, range: [0, 100]}
+  - {key: hor_front_tol,        node: "ns=6;s=::AsGlobalPV:gTempStatus.Front.ZoneInTol",          type: Bool, class: event}
+  - {key: hor_front_heater_on,  node: "ns=6;s=::AsGlobalPV:gTempStatus.Front.HeaterOutput",       type: Bool, class: event}
+  - {key: hor_rear_temp,        node: "ns=6;s=::AsGlobalPV:AnaTemp.HorRear",                      unit: °C, class: fast}
+  - {key: hor_rear_set,         node: "ns=6;s=::AsGlobalPV:gTempPar.Rear.SetTemp",                unit: °C, class: slow}
+  - {key: hor_rear_output,      node: "ns=6;s=::AsGlobalPV:gTempStatus.Rear.HeatOutputInPer",     unit: "%", class: fast, range: [0, 100]}
+  - {key: hor_rear_tol,         node: "ns=6;s=::AsGlobalPV:gTempStatus.Rear.ZoneInTol",           type: Bool, class: event}
+  - {key: hor_rear_heater_on,   node: "ns=6;s=::AsGlobalPV:gTempStatus.Rear.HeaterOutput",        type: Bool, class: event}
+  - {key: vert1_temp,           node: "ns=6;s=::AsGlobalPV:AnaTemp.Vertical1",                    unit: °C, class: fast}
+  - {key: vert1_set,            node: "ns=6;s=::AsGlobalPV:gTempPar.Vertical1.SetTemp",           unit: °C, class: slow}
+  - {key: vert1_output,         node: "ns=6;s=::AsGlobalPV:gTempStatus.Vertical1.HeatOutputInPer", unit: "%", class: fast, range: [0, 100]}
+  - {key: vert1_tol,            node: "ns=6;s=::AsGlobalPV:gTempStatus.Vertical1.ZoneInTol",      type: Bool, class: event}
+  - {key: vert1_heater_on,      node: "ns=6;s=::AsGlobalPV:gTempStatus.Vertical1.HeaterOutput",   type: Bool, class: event}
+  - {key: vert2_temp,           node: "ns=6;s=::AsGlobalPV:AnaTemp.Vertical2",                    unit: °C, class: fast}
+  - {key: vert2_set,            node: "ns=6;s=::AsGlobalPV:gTempPar.Vertical2.SetTemp",           unit: °C, class: slow}
+  - {key: vert2_output,         node: "ns=6;s=::AsGlobalPV:gTempStatus.Vertical2.HeatOutputInPer", unit: "%", class: fast, range: [0, 100]}
+  - {key: vert2_tol,            node: "ns=6;s=::AsGlobalPV:gTempStatus.Vertical2.ZoneInTol",      type: Bool, class: event}
+  - {key: vert2_heater_on,      node: "ns=6;s=::AsGlobalPV:gTempStatus.Vertical2.HeaterOutput",   type: Bool, class: event}
 
   # — 6 servo axes: BX box, CS cross-seal, FF film feed, PK poker, UW unwind, VS vertical seal —
-  # (VS velocity node genuinely differs on the PLC — kept faithful, not a typo.)
-  - {key: bx_rpm,      node: "ns=6;s=::AsGlobalPV:Axis_BX.Status.ActRevPerMinute", unit: rpm, class: fast}
-  - {key: bx_current,  node: "ns=6;s=::AsGlobalPV:Axis_BX.Status.ActCurrent",      unit: A, class: fast}
-  - {key: bx_error_id, node: "ns=6;s=::AsGlobalPV:Axis_BX.Status.ErrorID",        type: DInt, class: event}
-  - {key: cs_rpm,      node: "ns=6;s=::AsGlobalPV:Axis_CS.Status.ActRevPerMinute", unit: rpm, class: fast}
-  - {key: cs_current,  node: "ns=6;s=::AsGlobalPV:Axis_CS.Status.ActCurrent",      unit: A, class: fast}
-  - {key: cs_error_id, node: "ns=6;s=::AsGlobalPV:Axis_CS.Status.ErrorID",        type: DInt, class: event}
-  - {key: ff_rpm,      node: "ns=6;s=::AsGlobalPV:Axis_FF.Status.ActRevPerMinute", unit: rpm, class: fast}
-  - {key: ff_current,  node: "ns=6;s=::AsGlobalPV:Axis_FF.Status.ActCurrent",      unit: A, class: fast}
-  - {key: ff_error_id, node: "ns=6;s=::AsGlobalPV:Axis_FF.Status.ErrorID",        type: DInt, class: event}
-  - {key: pk_rpm,      node: "ns=6;s=::AsGlobalPV:Axis_PK.Status.ActRevPerMinute", unit: rpm, class: fast}
-  - {key: pk_current,  node: "ns=6;s=::AsGlobalPV:Axis_PK.Status.ActCurrent",      unit: A, class: fast}
-  - {key: pk_error_id, node: "ns=6;s=::AsGlobalPV:Axis_PK.Status.ErrorID",        type: DInt, class: event}
-  - {key: uw_rpm,      node: "ns=6;s=::AsGlobalPV:Axis_UW.Status.ActRevPerMinute", unit: rpm, class: fast}
-  - {key: uw_current,  node: "ns=6;s=::AsGlobalPV:Axis_UW.Status.ActCurrent",      unit: A, class: fast}
-  - {key: uw_error_id, node: "ns=6;s=::AsGlobalPV:Axis_UW.Status.ErrorID",        type: DInt, class: event}
-  - {key: vs_rpm,      node: "ns=6;s=::AsGlobalPV:Axis_VS.Status.Velocity",       unit: rpm, class: fast}
-  - {key: vs_current,  node: "ns=6;s=::AsGlobalPV:Axis_VS.Status.ActCurrent",      unit: A, class: fast}
-  - {key: vs_error_id, node: "ns=6;s=::AsGlobalPV:Axis_VS.Status.ErrorID",        type: DInt, class: event}
+  - {key: bx_rpm,          node: "ns=6;s=::AsGlobalPV:Axis_BX.Status.ActRevPerMinute", unit: rpm, class: fast}
+  - {key: bx_current,      node: "ns=6;s=::AsGlobalPV:Axis_BX.Status.ActCurrent",      unit: A, class: fast}
+  - {key: bx_error_id,     node: "ns=6;s=::AsGlobalPV:Axis_BX.Status.ErrorID",        type: DInt, class: event}
+  - {key: bx_error_active, node: "ns=6;s=::AsGlobalPV:Axis_BX.Status.ErrorActive",    type: Bool, class: event}
+  - {key: bx_temp,         node: "ns=6;s=::AsGlobalPV:Axis_BX.Status.ActTemperature", unit: °C, class: fast}
+  - {key: bx_position,     node: "ns=6;s=::AsGlobalPV:Axis_BX.Status.PositionInDeg",  unit: deg, class: fast}
+  - {key: cs_rpm,          node: "ns=6;s=::AsGlobalPV:Axis_CS.Status.ActRevPerMinute", unit: rpm, class: fast}
+  - {key: cs_current,      node: "ns=6;s=::AsGlobalPV:Axis_CS.Status.ActCurrent",      unit: A, class: fast}
+  - {key: cs_error_id,     node: "ns=6;s=::AsGlobalPV:Axis_CS.Status.ErrorID",        type: DInt, class: event}
+  - {key: cs_error_active, node: "ns=6;s=::AsGlobalPV:Axis_CS.Status.ErrorActive",    type: Bool, class: event}
+  - {key: cs_temp,         node: "ns=6;s=::AsGlobalPV:Axis_CS.Status.ActTemperature", unit: °C, class: fast}
+  - {key: ff_rpm,          node: "ns=6;s=::AsGlobalPV:Axis_FF.Status.ActRevPerMinute", unit: rpm, class: fast}
+  - {key: ff_current,      node: "ns=6;s=::AsGlobalPV:Axis_FF.Status.ActCurrent",      unit: A, class: fast}
+  - {key: ff_error_id,     node: "ns=6;s=::AsGlobalPV:Axis_FF.Status.ErrorID",        type: DInt, class: event}
+  - {key: ff_error_active, node: "ns=6;s=::AsGlobalPV:Axis_FF.Status.ErrorActive",    type: Bool, class: event}
+  - {key: ff_temp,         node: "ns=6;s=::AsGlobalPV:Axis_FF.Status.ActTemperature", unit: °C, class: fast}
+  - {key: pk_rpm,          node: "ns=6;s=::AsGlobalPV:Axis_PK.Status.ActRevPerMinute", unit: rpm, class: fast}
+  - {key: pk_current,      node: "ns=6;s=::AsGlobalPV:Axis_PK.Status.ActCurrent",      unit: A, class: fast}
+  - {key: pk_error_id,     node: "ns=6;s=::AsGlobalPV:Axis_PK.Status.ErrorID",        type: DInt, class: event}
+  - {key: pk_error_active, node: "ns=6;s=::AsGlobalPV:Axis_PK.Status.ErrorActive",    type: Bool, class: event}
+  - {key: pk_temp,         node: "ns=6;s=::AsGlobalPV:Axis_PK.Status.ActTemperature", unit: °C, class: fast}
+  - {key: pk_position,     node: "ns=6;s=::AsGlobalPV:Axis_PK.Status.PositionInDeg",  unit: deg, class: fast}
+  - {key: uw_rpm,          node: "ns=6;s=::AsGlobalPV:Axis_UW.Status.ActRevPerMinute", unit: rpm, class: fast}
+  - {key: uw_current,      node: "ns=6;s=::AsGlobalPV:Axis_UW.Status.ActCurrent",      unit: A, class: fast}
+  - {key: uw_error_id,     node: "ns=6;s=::AsGlobalPV:Axis_UW.Status.ErrorID",        type: DInt, class: event}
+  - {key: uw_error_active, node: "ns=6;s=::AsGlobalPV:Axis_UW.Status.ErrorActive",    type: Bool, class: event}
+  - {key: uw_temp,         node: "ns=6;s=::AsGlobalPV:Axis_UW.Status.ActTemperature", unit: °C, class: fast}
+  - {key: vs_rpm,          node: "ns=6;s=::AsGlobalPV:Axis_VS.Status.Velocity",       unit: rpm, class: fast}
+  - {key: vs_current,      node: "ns=6;s=::AsGlobalPV:Axis_VS.Status.ActCurrent",      unit: A, class: fast}
+  - {key: vs_error_id,     node: "ns=6;s=::AsGlobalPV:Axis_VS.Status.ErrorID",        type: DInt, class: event}
+  - {key: vs_error_active, node: "ns=6;s=::AsGlobalPV:Axis_VS.Status.ErrorActive",    type: Bool, class: event}
+  - {key: vs_temp,         node: "ns=6;s=::AsGlobalPV:Axis_VS.Status.ActTemperature", unit: °C, class: fast}
+  - {key: vs_position,     node: "ns=6;s=::AsGlobalPV:Axis_VS.Status.PositionInDeg",  unit: deg, class: fast}
+  - {key: vs_powered_on,   node: "ns=6;s=::AsGlobalPV:Axis_VS.Status.PoweredOn",      type: Bool, class: event}
+  - {key: vs_is_homed,     node: "ns=6;s=::AsGlobalPV:Axis_VS.Status.IsHomed",        type: Bool, class: event}
+  - {key: vs_in_sync,      node: "ns=6;s=::AsGlobalPV:Axis_VS.Status.InSync",         type: Bool, class: event}
 
-  # — OEE / production counters (MVP set; TBD nodes verified on site) —
+  # — OEE scalars —
+  - {key: planned_dt_remaining,   node: "ns=6;s=::DataHandle:iVa_OEEPDTRemainingTime",     unit: "%", class: slow}
+  - {key: unplanned_dt_remaining, node: "ns=6;s=::DataHandle:iVa_OEEUPDTRemainingTime",    unit: "%", class: slow}
+  - {key: prod_remaining,         node: "ns=6;s=::DataHandle:iVa_OEEPRODRemainingCounts",  unit: counts, class: slow}
+  - {key: shift_total_time,       node: "ns=6;s=::AsGlobalPV:gVa_Shift.Status.TotalShiftTime", unit: s, class: slow}
+
+  # — utilization_time[7] —
+  - {key: util_0, node: "ns=6;s=::DataHandle:iVa_OEEUTILIZETime[0]", unit: s, class: slow}
+  - {key: util_1, node: "ns=6;s=::DataHandle:iVa_OEEUTILIZETime[1]", unit: s, class: slow}
+  - {key: util_2, node: "ns=6;s=::DataHandle:iVa_OEEUTILIZETime[2]", unit: s, class: slow}
+  - {key: util_3, node: "ns=6;s=::DataHandle:iVa_OEEUTILIZETime[3]", unit: s, class: slow}
+  - {key: util_4, node: "ns=6;s=::DataHandle:iVa_OEEUTILIZETime[4]", unit: s, class: slow}
+  - {key: util_5, node: "ns=6;s=::DataHandle:iVa_OEEUTILIZETime[5]", unit: s, class: slow}
+  - {key: util_6, node: "ns=6;s=::DataHandle:iVa_OEEUTILIZETime[6]", unit: s, class: slow}
+
+  # — planned_dt_sorted_counts[23] —
+  - {key: pdt_0,  node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[0]",  class: slow}
+  - {key: pdt_1,  node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[1]",  class: slow}
+  - {key: pdt_2,  node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[2]",  class: slow}
+  - {key: pdt_3,  node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[3]",  class: slow}
+  - {key: pdt_4,  node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[4]",  class: slow}
+  - {key: pdt_5,  node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[5]",  class: slow}
+  - {key: pdt_6,  node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[6]",  class: slow}
+  - {key: pdt_7,  node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[7]",  class: slow}
+  - {key: pdt_8,  node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[8]",  class: slow}
+  - {key: pdt_9,  node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[9]",  class: slow}
+  - {key: pdt_10, node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[10]", class: slow}
+  - {key: pdt_11, node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[11]", class: slow}
+  - {key: pdt_12, node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[12]", class: slow}
+  - {key: pdt_13, node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[13]", class: slow}
+  - {key: pdt_14, node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[14]", class: slow}
+  - {key: pdt_15, node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[15]", class: slow}
+  - {key: pdt_16, node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[16]", class: slow}
+  - {key: pdt_17, node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[17]", class: slow}
+  - {key: pdt_18, node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[18]", class: slow}
+  - {key: pdt_19, node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[19]", class: slow}
+  - {key: pdt_20, node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[20]", class: slow}
+  - {key: pdt_21, node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[21]", class: slow}
+  - {key: pdt_22, node: "ns=6;s=::DataHandle:iVa_OEEPDTSortedCounts[22]", class: slow}
+
+  # — unplanned_dt_sorted_counts[11] —
+  - {key: udt_0,  node: "ns=6;s=::DataHandle:iVa_OEEUPDTSortedCounts[0]",  class: slow}
+  - {key: udt_1,  node: "ns=6;s=::DataHandle:iVa_OEEUPDTSortedCounts[1]",  class: slow}
+  - {key: udt_2,  node: "ns=6;s=::DataHandle:iVa_OEEUPDTSortedCounts[2]",  class: slow}
+  - {key: udt_3,  node: "ns=6;s=::DataHandle:iVa_OEEUPDTSortedCounts[3]",  class: slow}
+  - {key: udt_4,  node: "ns=6;s=::DataHandle:iVa_OEEUPDTSortedCounts[4]",  class: slow}
+  - {key: udt_5,  node: "ns=6;s=::DataHandle:iVa_OEEUPDTSortedCounts[5]",  class: slow}
+  - {key: udt_6,  node: "ns=6;s=::DataHandle:iVa_OEEUPDTSortedCounts[6]",  class: slow}
+  - {key: udt_7,  node: "ns=6;s=::DataHandle:iVa_OEEUPDTSortedCounts[7]",  class: slow}
+  - {key: udt_8,  node: "ns=6;s=::DataHandle:iVa_OEEUPDTSortedCounts[8]",  class: slow}
+  - {key: udt_9,  node: "ns=6;s=::DataHandle:iVa_OEEUPDTSortedCounts[9]",  class: slow}
+  - {key: udt_10, node: "ns=6;s=::DataHandle:iVa_OEEUPDTSortedCounts[10]", class: slow}
+
+  # — discrete I/O —
+  - {key: poker_active,       node: "ns=6;s=::AuxCtrl:iStatus_PokerFuncActive",        type: Bool, class: event}
+  - {key: dancer_pos,         node: "ns=6;s=::Unwind:iVa_StatusMinUnwDcrIdlePos",      unit: mm, class: slow}
+  - {key: dia_bypass,         node: "ns=6;s=::Unwind:iFl_StatusDiaBypassActive",       type: Bool, class: event}
+  - {key: stripping_active,   node: "ns=6;s=::VisuCtrl:iVa_StatusBXStrippingActive",   type: Bool, class: event}
+  - {key: unwind_dia_inline,  node: "ns=6;s=::Unwind:iFl_StatusDiaInLineActive",       type: Bool, class: event}
+  - {key: advance_cycle_dump, node: "ns=6;s=::AutoCtrl:iVa_AdvanceCycleDumpCnt",       type: UDInt, class: slow}
+
+  # — production counters (MVP extras; TBD nodes verified on site) —
   - {key: count_good, node: "::TBD:verify-on-site-count_good", type: UDInt, unit: bags, class: slow}
-  - {key: count_bad,  node: "::TBD:verify-on-site-count_bad", type: UDInt, unit: bags, class: slow}
-  - {key: running,    node: "::TBD:verify-on-site-running", type: Bool, class: event}
-  - {key: alarm_cnt,  node: "ns=6;s=::VisuCtrl:iVa_AlarmActivePulseCnt", type: UDInt, class: event}
+  - {key: count_bad,  node: "::TBD:verify-on-site-count_bad",  type: UDInt, unit: bags, class: slow}
+  - {key: running,    node: "::TBD:verify-on-site-running",    type: Bool, class: event}
   - {key: fault_code, node: "::TBD:verify-on-site-fault_code", type: DInt, class: event}

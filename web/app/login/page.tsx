@@ -23,15 +23,19 @@ export default function LoginPage() {
 
   return (
     <div className="mx-auto mt-16 max-w-sm">
-      <h1 className="mb-4 text-xl font-bold">Operator login</h1>
-      {demoMode && <p className="mb-3 rounded border border-sky-500/40 bg-sky-500/10 p-2 text-sm text-sky-200">Demo mode is enabled; no account is required.</p>}
-      <form onSubmit={submit} className="space-y-3">
+      <div className="mb-5 flex items-center gap-2.5">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1d1d1f] text-[16px] font-semibold text-white">P</span>
+        <span className="font-display text-[17px] font-semibold tracking-tight">PaceAI</span>
+      </div>
+      <h1 className="font-display text-[22px] font-semibold tracking-tight">Operator login</h1>
+      {demoMode && <p className="mb-3 mt-3 rounded-2xl bg-[#0071e3]/[0.07] p-3.5 text-sm text-[#0071e3]">Demo mode is enabled; no account is required.</p>}
+      <form onSubmit={submit} className="mt-4 space-y-3">
         <input name="email" type="email" required placeholder="Email"
-          className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm" />
+          className="w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm outline-none placeholder:text-[#6e6e73] focus:border-[#0071e3]" />
         <input name="password" type="password" required placeholder="Password"
-          className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm" />
-        {err && <p className="text-sm text-red-300">{err}</p>}
-        <button className="w-full rounded bg-emerald-600 py-2 text-sm font-medium">Sign in</button>
+          className="w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm outline-none placeholder:text-[#6e6e73] focus:border-[#0071e3]" />
+        {err && <p className="text-sm text-[#d70015]">{err}</p>}
+        <button className="w-full rounded-full bg-[#1d1d1f] py-2.5 text-sm font-medium text-white">Sign in</button>
       </form>
     </div>
   );

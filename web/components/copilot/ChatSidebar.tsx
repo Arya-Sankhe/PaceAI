@@ -16,13 +16,13 @@ export function ChatSidebar({ machineKey }: { machineKey: string }) {
   if (!open)
     return (
       <button onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-3 font-medium shadow-lg">
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-3 font-medium shadow-[0_8px_32px_rgba(16,185,129,0.28)]">
         <Bot size={18} /> Copilot
       </button>
     );
   return (
-    <aside className="fixed bottom-0 right-0 top-0 z-40 flex w-full max-w-md flex-col border-l border-zinc-800 bg-zinc-950">
-      <header className="flex items-center justify-between border-b border-zinc-800 p-3">
+    <aside className="fixed bottom-0 right-0 top-0 z-40 flex w-full max-w-md flex-col border-l border-white/10 bg-[#111418]/92 backdrop-blur-xl">
+      <header className="flex items-center justify-between border-b border-white/10 p-3">
         <b>Diagnostic Copilot</b>
         <button onClick={() => setOpen(false)} className="text-zinc-400">✕</button>
       </header>

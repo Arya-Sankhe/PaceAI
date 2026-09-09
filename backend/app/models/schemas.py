@@ -21,6 +21,8 @@ class StateOut(BaseModel):
     age_seconds: float | None = None
     values: Dict[str, float] = Field(default_factory=dict)
     quality: Dict[str, str] = Field(default_factory=dict)
+    info: Dict[str, str] = Field(default_factory=dict)
+    titles: Dict[str, List[str]] = Field(default_factory=dict)
     collector_connected: bool = True
     source: Literal["dummy", "plc"] = "dummy"
 

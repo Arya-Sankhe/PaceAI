@@ -25,12 +25,14 @@ class DummyMachineSource:
         if machine_key not in {m["machine_key"] for m in _MANIFEST["machines"]}:
             raise KeyError(machine_key)
         sampler = self._faulted if machine_key == settings.MOCK_FAULT_MACHINE else self._healthy
-        values, quality = (await sampler())[machine_key]
+        values, quality, info, titles = (await sampler())[machine_key]
         return {
             "machine_key": machine_key,
             "source_ts": datetime.now(timezone.utc),
             "values": values,
             "quality": quality,
+            "info": info,
+            "titles": titles,
             "freshness": "live",
             "age_seconds": 0.0,
             "collector_connected": True,

@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
 import { api, type ApiEvent, type History } from "@/lib/api";
 import { MetricHistoryChart } from "@/components/charts/MetricHistoryChart";
 
@@ -16,8 +14,7 @@ const GROUPS: { id: string; label: string; keys: string[] }[] = [
   { id: "oee", label: "Production", keys: ["prod_remaining", "planned_dt_remaining", "unplanned_dt_remaining"] },
 ];
 
-export default function HistoryPage() {
-  const { key } = useParams<{ key: string }>();
+export function HistoryView({ machineKey }: { machineKey: string }) {
   const [days, setDays] = useState(1);
   const [group, setGroup] = useState(GROUPS[0].id);
   const [hist, setHist] = useState<History | null>(null);
@@ -27,19 +24,12 @@ export default function HistoryPage() {
   useEffect(() => {
     const until = new Date();
     const since = new Date(+until - days * 86400_000);
-    api.history(key, since.toISOString(), until.toISOString()).then(setHist).catch(() => {});
-    api.events(key).then(setEvents).catch(() => {});
-  }, [key, days]);
+    api.history(machineKey, since.toISOString(), until.toISOString()).then(setHist).catch(() => {});
+    api.events(machineKey).then(setEvents).catch(() => {});
+  }, [machineKey, days]);
 
   return (
-    <div className="space-y-5">
-      <header>
-        <Link href={`/machines/${key}?tab=history`} className="text-[13px] font-medium text-[#0071e3]">
-          ← Back to cockpit
-        </Link>
-        <h1 className="font-display mt-1 text-[26px] font-semibold tracking-tight">History</h1>
-        <p className="mt-1 text-[13.5px] text-[#6e6e73]">Trends and events over time.</p>
-      </header>
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex rounded-full bg-black/[0.04] p-1">
           {RANGES.map((r) => (
@@ -49,8 +39,11 @@ export default function HistoryPage() {
             </button>
           ))}
         </div>
-        <span className="ml-auto text-[12px] text-[#6e6e73]">{hist ? `${hist.resolution} · ${hist.points.length} points` : ""}</span>
+        <span className="ml-auto text-[12px] text-[#6e6e73]">
+          {hist ? `${hist.resolution} · ${hist.points.length} points` : ""}
+        </span>
       </div>
+
       <div className="flex gap-2 overflow-x-auto pb-1">
         {GROUPS.map((g) => (
           <button key={g.id} onClick={() => setGroup(g.id)}
@@ -61,11 +54,13 @@ export default function HistoryPage() {
           </button>
         ))}
       </div>
+
       {hist && <MetricHistoryChart points={hist.points} keys={keys} events={events} />}
+
       <section className="card p-5 sm:p-6">
         <h2 className="font-display mb-3 text-[16px] font-semibold tracking-tight">Events</h2>
         {events.length === 0 ? (
-          <p className="text-[13.5px] text-[#6e6e73]">No events in this window.</p>
+          <p className="text-[13.5px] text-[#6e6e73]">No events in this window. The line has been quiet.</p>
         ) : (
           <ul className="divide-y divide-black/[0.05]">
             {events.map((e) => (

@@ -5,7 +5,7 @@ import { api, type MachineState } from "@/lib/api";
 
 const unknownState = (key: string): MachineState => ({
   machine_key: key, freshness: "unknown", source_ts: null, age_seconds: null,
-  values: {}, quality: {}, collector_connected: false,
+  values: {}, quality: {}, collector_connected: false, info: {}, titles: {},
 });
 
 // 1s active / 10s hidden, instant refresh on focus. Values never silently freeze:

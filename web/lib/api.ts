@@ -55,6 +55,8 @@ export interface MachineState {
   machine_key: string; freshness: Freshness; source_ts: string | null;
   age_seconds: number | null; values: Record<string, number>;
   quality: Record<string, string>; collector_connected: boolean; source?: "dummy" | "plc";
+  info?: Record<string, string>;
+  titles?: { planned_dt?: string[]; unplanned_dt?: string[] };
 }
 export interface History { machine_key: string; resolution: string; points: { t: string; values: Record<string, number | null> }[]; }
 export interface ApiEvent { id: number; ts: string; event_type: string; severity: string; data: Record<string, unknown>; }

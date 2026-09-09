@@ -23,22 +23,22 @@ export default function PageViewer() {
   }, [load]);
 
   return (
-    <div className="space-y-3">
-      <header className="flex items-center gap-3">
-        <Link href="/manuals" className="text-sm text-sky-300">← Library</Link>
-        <h1 className="font-bold">Page {num}</h1>
-        <div className="ml-auto flex gap-1">
-          <button onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))} className="rounded bg-zinc-800 px-2">−</button>
-          <button onClick={() => setZoom((z) => Math.min(3, +(z + 0.25).toFixed(2)))} className="rounded bg-zinc-800 px-2">+</button>
+    <div className="space-y-4">
+      <header className="flex flex-wrap items-center gap-3">
+        <Link href="/manuals" className="text-[13px] font-medium text-[#0071e3]">← Library</Link>
+        <h1 className="font-display text-[20px] font-semibold tracking-tight">Page {num}</h1>
+        <div className="ml-auto flex items-center gap-1.5">
+          <button onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))} className="rounded-full bg-black/[0.04] px-3 py-1 text-sm">−</button>
+          <button onClick={() => setZoom((z) => Math.min(3, +(z + 0.25).toFixed(2)))} className="rounded-full bg-black/[0.04] px-3 py-1 text-sm">+</button>
         </div>
-        {num > 1 && <Link href={`/manuals/${id}/${num - 1}`} className="text-sm text-sky-300">← Prev</Link>}
-        <Link href={`/manuals/${id}/${num + 1}`} className="text-sm text-sky-300">Next →</Link>
+        {num > 1 && <Link href={`/manuals/${id}/${num - 1}`} className="text-[13px] font-medium text-[#0071e3]">← Prev</Link>}
+        <Link href={`/manuals/${id}/${num + 1}`} className="text-[13px] font-medium text-[#0071e3]">Next →</Link>
       </header>
       {url ? (
         <img src={url} alt={`Manual page ${num}`} style={{ width: `${zoom * 100}%` }}
-          className="mx-auto rounded border border-zinc-800" />
+          className="card mx-auto" />
       ) : (
-        <p className="text-sm text-zinc-500">Loading page…</p>
+        <p className="text-sm text-[#6e6e73]">Loading page…</p>
       )}
     </div>
   );
