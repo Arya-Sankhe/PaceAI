@@ -29,5 +29,20 @@ def doc_prefix(document_id: str) -> str:
     return f"{document_id}/"
 
 
+def remove_prefix(bucket: str, prefix: str) -> None:
+    """Best-effort removal of every object under prefix. Missing bucket/prefix is fine."""
+    sb = get_supabase_admin_client()
+    try:
+        items = sb.storage.from_(bucket).list(prefix) or []
+    except Exception:
+        return
+    paths = [f"{prefix}/{it['name']}" for it in items if it.get("name")]
+    for i in range(0, len(paths), 100):
+        try:
+            sb.storage.from_(bucket).remove(paths[i:i + 100])
+        except Exception:
+            pass
+
+
 def page_path(document_id: str, page_number: int) -> str:
     return f"{document_id}/page_{page_number:04d}.png"

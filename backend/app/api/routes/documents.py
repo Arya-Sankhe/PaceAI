@@ -1,6 +1,7 @@
 """Manual library. Uploads are metadata-only; the worker does the slow work."""
 
 import hashlib
+import re
 
 import anyio
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -15,10 +16,15 @@ router = APIRouter()
 MAX_PDF_BYTES = 100 * 1024 * 1024
 
 
+def _slug(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-") or "manual"
+
+
 @router.post("/documents/upload", response_model=UploadOut)
 async def upload(
     request: Request, file: UploadFile = File(...),
-    family_key: str = Form(...), title: str = Form(...), revision: str = Form("1.0"),
+    family_key: str | None = Form(None), title: str | None = Form(None),
+    revision: str = Form("1.0"),
     admin=Depends(deps.require_admin), conn=Depends(deps.get_conn),
 ):
     raw = await file.read()
@@ -27,6 +33,13 @@ async def upload(
     if not raw.startswith(b"%PDF"):
         raise HTTPException(400, "not_a_pdf")
     sha = hashlib.sha256(raw).hexdigest()
+
+    # Upload is file-first: title/family fall back to the filename so the
+    # form never blocks on jargon. "Report_V2.pdf" -> title "Report V2".
+    filename = file.filename or "manual.pdf"
+    stem = filename[:-4] if filename.lower().endswith(".pdf") else filename
+    clean_title = (title or "").strip() or re.sub(r"[_-]+", " ", stem).strip() or "Untitled manual"
+    family = (family_key or "").strip() or _slug(clean_title)
 
     dup = await conn.fetchrow("SELECT id FROM manual_documents WHERE sha256 = $1", sha)
     if dup is not None:
@@ -44,14 +57,14 @@ async def upload(
     # later uploads stay staged until the existing activate endpoint is used.
     active = await conn.fetchval(
         "SELECT EXISTS (SELECT 1 FROM manual_documents WHERE family_key = $1 AND is_active)",
-        family_key,
+        family,
     )
 
     doc = await conn.fetchrow(
         """INSERT INTO manual_documents
            (family_key, revision, sha256, title, filename, pdf_storage_path, status, is_active)
            VALUES ($1,$2,$3,$4,$5,$6,'pending',$7) RETURNING id""",
-        family_key, revision, sha, title, file.filename or "manual.pdf", "", not active,
+        family, revision, sha, clean_title, filename, "", not active,
     )
     path = f"{storage.doc_prefix(str(doc['id']))}source.pdf"
     try:
@@ -73,11 +86,38 @@ async def upload(
 
 @router.get("/documents", response_model=list[ManualOut])
 async def list_docs(_=Depends(deps.require_user), conn=Depends(deps.get_conn)):
+    # Every revision is listed (active, staged, processing, failed) so an
+    # upload never silently disappears; retrieval still uses ready + active only.
     rows = await conn.fetch(
         """SELECT id, family_key, revision, title, total_pages, status, is_active
-           FROM manual_documents WHERE is_active AND status = 'ready' ORDER BY title"""
+           FROM manual_documents ORDER BY is_active DESC, title"""
     )
     return [dict(r) for r in rows]
+
+
+@router.delete("/documents/{doc_id}")
+async def delete_doc(doc_id: str, request: Request, admin=Depends(deps.require_admin), conn=Depends(deps.get_conn)):
+    doc = await conn.fetchrow(
+        "SELECT id FROM manual_documents WHERE id = $1", _uuid(doc_id)
+    )
+    if doc is None:
+        raise HTTPException(404, "unknown_document")
+    prefix = str(doc["id"])
+    # Storage cleanup is best-effort; the DB rows are the source of truth
+    # for retrieval, and orphaned private objects are harmless.
+    try:
+        await anyio.to_thread.run_sync(
+            storage.remove_prefix, settings.SUPABASE_STORAGE_BUCKET_MANUALS, prefix
+        )
+        await anyio.to_thread.run_sync(
+            storage.remove_prefix, settings.SUPABASE_STORAGE_BUCKET_PAGES, prefix
+        )
+    except Exception:
+        pass
+    # Pages + jobs cascade from the document row.
+    await conn.execute("DELETE FROM manual_documents WHERE id = $1", doc["id"])
+    deps.log_admin("manual.delete", request, str(doc["id"]))
+    return {"ok": True}
 
 
 @router.get("/documents/{doc_id}/job", response_model=JobOut)

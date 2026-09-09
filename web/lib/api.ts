@@ -40,10 +40,11 @@ export const api = {
       const body = await res.json().catch(() => ({}));
       throw new Error(typeof body.detail === "string" ? body.detail : "upload_failed");
     }
-    return res.json() as Promise<{ document_id: string; job_id: string }>;
+    return res.json() as Promise<{ document_id: string; job_id: string; deduped?: boolean }>;
   },
   job: (id: string) => req<{ status: string; last_error: string | null }>(`/documents/${id}/job`),
   activate: (id: string) => req<{ ok: boolean }>(`/documents/${id}/activate`, { method: "POST" }),
+  removeDoc: (id: string) => req<{ ok: boolean }>(`/documents/${id}`, { method: "DELETE" }),
   pageUrl: (id: string, num: number) =>
     req<{ url: string; expires_in: number }>(`/documents/${id}/pages/${num}/signed-url`),
   conversations: () => req<Conversation[]>("/conversations"),

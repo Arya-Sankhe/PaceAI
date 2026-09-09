@@ -114,6 +114,7 @@ POST /api/v1/documents/upload
 GET  /api/v1/documents
 GET  /api/v1/documents/{id}/pages/{number}/signed-url
 POST /api/v1/documents/{id}/activate
+DELETE /api/v1/documents/{id}
 
 GET  /health/live
 GET  /health/ready
