@@ -31,24 +31,24 @@ export function HistoryView({ machineKey }: { machineKey: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex rounded-full bg-black/[0.04] p-1">
+        <div className="flex rounded-full border border-white/10 bg-black/25 p-1 backdrop-blur">
           {RANGES.map((r) => (
             <button key={r.d} onClick={() => setDays(r.d)}
-              className={`rounded-full px-3.5 py-1.5 text-[13px] font-medium ${days === r.d ? "bg-white text-[#1d1d1f] shadow-sm" : "text-[#515154]"}`}>
+              className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-all ${days === r.d ? "bg-white text-black shadow" : "text-white/60 hover:text-white"}`}>
               {r.label}
             </button>
           ))}
         </div>
-        <span className="ml-auto text-[12px] text-[#6e6e73]">
-          {hist ? `${hist.resolution} · ${hist.points.length} points` : ""}
+        <span className="ml-auto text-[12px] tabular text-white/40">
+          {hist ? `${hist.resolution} · ${hist.points.length} pts` : ""}
         </span>
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1">
         {GROUPS.map((g) => (
           <button key={g.id} onClick={() => setGroup(g.id)}
-            className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium ${
-              group === g.id ? "bg-[#1d1d1f] text-white" : "bg-black/[0.04] text-[#515154] hover:bg-black/[0.06]"
+            className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[13px] font-semibold backdrop-blur transition-all ${
+              group === g.id ? "border-white bg-white text-black shadow-lg" : "border-white/10 bg-black/20 text-white/65 hover:text-white"
             }`}>
             {g.label}
           </button>
@@ -57,19 +57,19 @@ export function HistoryView({ machineKey }: { machineKey: string }) {
 
       {hist && <MetricHistoryChart points={hist.points} keys={keys} events={events} />}
 
-      <section className="card p-5 sm:p-6">
-        <h2 className="font-display mb-3 text-[16px] font-semibold tracking-tight">Events</h2>
+      <section className="glass p-5 sm:p-6">
+        <h2 className="font-display mb-3 text-[16px] font-semibold tracking-tight text-white">Events</h2>
         {events.length === 0 ? (
-          <p className="text-[13.5px] text-[#6e6e73]">No events in this window. The line has been quiet.</p>
+          <p className="text-[13.5px] text-white/50">No events in this window. The line has been quiet.</p>
         ) : (
-          <ul className="divide-y divide-black/[0.05]">
+          <ul className="divide-y divide-white/[0.07]">
             {events.map((e) => (
               <li key={e.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-2.5 text-[13px]">
-                <span className="text-[#6e6e73] tabular">{new Date(e.ts).toLocaleString()}</span>
-                <span className={`rounded-full px-2 py-0.5 text-[11.5px] font-medium ${e.severity === "info" ? "bg-black/[0.05] text-[#515154]" : "bg-[#b45309]/10 text-[#b45309]"}`}>
+                <span className="tabular text-white/40">{new Date(e.ts).toLocaleString()}</span>
+                <span className={`rounded-full border px-2 py-0.5 text-[11.5px] font-semibold ${e.severity === "info" ? "border-white/10 bg-white/[0.07] text-white/65" : "border-amber-300/25 bg-amber-300/10 text-amber-100"}`}>
                   {e.event_type}
                 </span>
-                <span className="w-full font-mono text-[12px] text-[#515154]">{JSON.stringify(e.data)}</span>
+                <span className="w-full font-mono text-[12px] text-white/45">{JSON.stringify(e.data)}</span>
               </li>
             ))}
           </ul>

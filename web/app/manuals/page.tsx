@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, Trash2 } from "lucide-react";
+import { ArrowUpRight, Check, FileText, Trash2 } from "lucide-react";
 import { api, type Manual } from "@/lib/api";
 import { ManualUploadModal } from "@/components/manuals/ManualUploadModal";
 
@@ -18,14 +18,12 @@ export default function ManualsPage() {
   };
   useEffect(() => { load(); }, []);
 
-  // Keep the list fresh while the reader works through an upload.
   useEffect(() => {
     if (!docs.some((d) => d.status === "pending" || d.status === "processing")) return;
     const t = setInterval(() => { api.manuals().then(setDocs).catch(() => {}); }, 4000);
     return () => clearInterval(t);
   }, [docs]);
 
-  // Surface why a failed upload failed.
   useEffect(() => {
     docs.filter((d) => d.status === "failed" && !jobErrors[d.id]).forEach(async (d) => {
       try {
@@ -67,56 +65,63 @@ export default function ManualsPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <header className="flex flex-wrap items-center gap-3">
-        <div>
-          <h1 className="font-display text-[26px] font-semibold tracking-tight">Manuals</h1>
-          <p className="mt-1 text-[13.5px] text-[#6e6e73]">The knowledge the assistant cites in its answers.</p>
-        </div>
-        <div className="ml-auto"><ManualUploadModal onDone={uploaded} /></div>
+    <div className="enter mx-auto w-full max-w-[760px] space-y-5 pb-16 pt-4 sm:pt-8">
+      <header className="mx-auto max-w-[560px] text-center">
+        <h1 className="font-display text-[30px] font-semibold tracking-tight text-white sm:text-[38px]">Manuals</h1>
+        <p className="mt-1.5 text-[13.5px] text-white/55">The knowledge the assistant cites in its answers.</p>
+        <div className="mt-4 flex justify-center"><ManualUploadModal onDone={uploaded} /></div>
       </header>
-      {notice && <p className="rounded-2xl bg-[#1d8127]/10 p-3.5 text-sm text-[#1d8127]">{notice}</p>}
-      {error && <p className="rounded-2xl bg-[#d70015]/[0.06] p-3.5 text-sm text-[#d70015]">{error}</p>}
-      <div className="card overflow-hidden">
+      {notice && <p className="mx-auto max-w-[560px] rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-3.5 text-center text-sm text-emerald-100">{notice}</p>}
+      {error && <p className="mx-auto max-w-[560px] rounded-2xl border border-red-400/25 bg-red-400/10 p-3.5 text-center text-sm text-red-100">{error}</p>}
+      <div className="glass overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-[12px] font-medium uppercase tracking-[0.06em] text-[#6e6e73]">
+            <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-white/40">
               <th className="px-5 py-3">Title</th>
               <th className="hidden px-3 py-3 sm:table-cell">Pages</th>
               <th className="px-3 py-3">Status</th>
               <th className="px-5 py-3 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-black/[0.05]">
+          <tbody className="divide-y divide-white/[0.07]">
             {docs.map((d) => (
-              <tr key={d.id}>
+              <tr key={d.id} className="transition-colors hover:bg-white/[0.03]">
                 <td className="px-5 py-3">
-                  {d.status === "ready" && d.total_pages > 0 ? (
-                    <Link href={`/manuals/${d.id}/1`} className="font-medium text-[#0071e3]">{d.title}</Link>
-                  ) : (
-                    <span className="font-medium">{d.title}</span>
-                  )}
-                  <span className="ml-2 text-[12px] text-[#6e6e73]">{d.revision}</span>
+                  <span className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.08] text-white/70">
+                      <FileText size={14} aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0">
+                      {d.status === "ready" && d.total_pages > 0 ? (
+                        <Link href={`/manuals/${d.id}/1`} className="flex items-center gap-1 font-semibold text-white hover:underline">
+                          <span className="truncate">{d.title}</span> <ArrowUpRight size={13} className="shrink-0 text-white/40" />
+                        </Link>
+                      ) : (
+                        <span className="block truncate font-semibold text-white">{d.title}</span>
+                      )}
+                      <span className="block text-[12px] text-white/40">{d.revision}</span>
+                    </span>
+                  </span>
                 </td>
-                <td className="hidden px-3 py-3 tabular text-[#515154] sm:table-cell">
+                <td className="hidden px-3 py-3 tabular text-white/55 sm:table-cell">
                   {d.total_pages > 0 ? d.total_pages : d.status === "failed" ? "—" : "…"}
                 </td>
                 <td className="px-3 py-3">
                   <StatusPill doc={d} />
                   {d.status === "failed" && jobErrors[d.id] && (
-                    <div className="mt-1 max-w-[16rem] text-[12px] text-[#d70015]">{jobErrors[d.id]}</div>
+                    <div className="mt-1 max-w-[16rem] text-[12px] text-[#ff8a8a]">{jobErrors[d.id]}</div>
                   )}
                 </td>
                 <td className="px-5 py-3">
                   <div className="flex items-center justify-end gap-2">
                     {d.status === "ready" && !d.is_active && (
                       <button onClick={() => useVersion(d.id)}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.04] px-3 py-1.5 text-[12.5px] font-medium hover:bg-black/[0.07]">
+                        className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.07] px-3 py-1.5 text-[12.5px] font-semibold text-white transition-all hover:bg-white hover:text-black">
                         <Check size={13} aria-hidden="true" /> Use this version
                       </button>
                     )}
                     <button onClick={() => removeDoc(d.id, d.title)} aria-label={`Delete ${d.title}`}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#6e6e73] hover:bg-[#d70015]/[0.07] hover:text-[#d70015]">
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full text-white/45 transition-colors hover:bg-red-400/15 hover:text-red-200">
                       <Trash2 size={15} aria-hidden="true" />
                     </button>
                   </div>
@@ -126,18 +131,18 @@ export default function ManualsPage() {
           </tbody>
         </table>
       </div>
-      {loading && <p className="text-sm text-[#6e6e73]">Loading manuals…</p>}
-      {!loading && docs.length === 0 && <p className="text-sm text-[#6e6e73]">Nothing here yet. Upload a PDF and the assistant will start citing it once reading finishes.</p>}
+      {loading && <p className="text-center text-sm text-white/45">Loading manuals…</p>}
+      {!loading && docs.length === 0 && <p className="mx-auto max-w-[420px] text-center text-sm leading-relaxed text-white/50">Nothing here yet. Upload a PDF and the assistant will start citing it once reading finishes.</p>}
     </div>
   );
 }
 
 function StatusPill({ doc }: { doc: Manual }) {
   if (doc.status === "failed")
-    return <span className="rounded-full bg-[#d70015]/[0.07] px-2.5 py-1 text-[12px] font-medium text-[#d70015]">Couldn&apos;t read it</span>;
+    return <span className="rounded-full border border-red-400/25 bg-red-400/10 px-2.5 py-1 text-[12px] font-semibold text-red-100">Couldn&apos;t read it</span>;
   if (doc.status !== "ready")
-    return <span className="rounded-full bg-[#b45309]/10 px-2.5 py-1 text-[12px] font-medium text-[#b45309]">Reading…</span>;
+    return <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-2.5 py-1 text-[12px] font-semibold text-amber-100">Reading…</span>;
   if (doc.is_active)
-    return <span className="rounded-full bg-[#1d8127]/10 px-2.5 py-1 text-[12px] font-medium text-[#1d8127]">In use</span>;
-  return <span className="rounded-full bg-black/[0.05] px-2.5 py-1 text-[12px] font-medium text-[#515154]">Ready</span>;
+    return <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-2.5 py-1 text-[12px] font-semibold text-emerald-100">In use</span>;
+  return <span className="rounded-full border border-white/12 bg-white/[0.07] px-2.5 py-1 text-[12px] font-semibold text-white/65">Ready</span>;
 }

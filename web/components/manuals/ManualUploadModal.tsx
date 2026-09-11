@@ -51,52 +51,54 @@ export function ManualUploadModal({ onDone }: { onDone: (upload: { document_id: 
 
   if (!open)
     return (
-      <button onClick={() => setOpen(true)} className="flex items-center gap-2 rounded-full bg-[#1d1d1f] px-4 py-2 text-[13.5px] font-medium text-white">
+      <button onClick={() => setOpen(true)} className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[13.5px] font-semibold text-black shadow-[0_8px_28px_rgba(0,0,0,0.3)] transition-transform hover:scale-[1.02] active:scale-[0.98]">
         <Upload size={15} aria-hidden="true" /> Upload manual
       </button>
     );
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => { setOpen(false); reset(); }}>
-      <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="card w-[26rem] max-w-full p-6">
-        <h2 className="font-display text-[17px] font-semibold tracking-tight">Upload manual</h2>
-        <p className="mt-1 text-[13px] text-[#6e6e73]">Pick a PDF — it starts reading on its own.</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => { setOpen(false); reset(); }}>
+      <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="black-card w-[26rem] max-w-full p-6">
+        <div className="relative z-10">
+          <h2 className="font-display text-[17px] font-semibold tracking-tight text-white">Upload manual</h2>
+          <p className="mt-1 text-[13px] text-white/50">Pick a PDF — it starts reading on its own.</p>
 
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-dashed border-black/15 bg-black/[0.02] px-4 py-5 text-left hover:bg-black/[0.04]"
-        >
-          <FileUp size={20} aria-hidden="true" className="shrink-0 text-[#6e6e73]" />
-          <span>
-            <span className="block text-[13.5px] font-medium">
-              {file ? file.name : "Choose a PDF file"}
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-dashed border-white/20 bg-white/[0.04] px-4 py-5 text-left transition-colors hover:bg-white/[0.07]"
+          >
+            <FileUp size={20} aria-hidden="true" className="shrink-0 text-white/50" />
+            <span>
+              <span className="block text-[13.5px] font-semibold text-white">
+                {file ? file.name : "Choose a PDF file"}
+              </span>
+              <span className="block text-[12.5px] tabular text-white/45">
+                {file ? `${(file.size / 1048576).toFixed(1)} MB` : "Up to 100MB"}
+              </span>
             </span>
-            <span className="block text-[12.5px] tabular text-[#6e6e73]">
-              {file ? `${(file.size / 1048576).toFixed(1)} MB` : "Up to 100MB"}
-            </span>
-          </span>
-        </button>
-        <input
-          ref={fileRef} type="file" accept=".pdf,application/pdf" required
-          className="hidden" onChange={(e) => pick(e.target.files?.[0] ?? null)}
-        />
-
-        <label className="mt-3 block">
-          <span className="text-[12.5px] font-medium text-[#515154]">Name (optional)</span>
-          <input
-            value={title}
-            onChange={(e) => { setTitle(e.target.value); setTouchedTitle(true); }}
-            placeholder="Taken from the file name"
-            className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none placeholder:text-[#6e6e73] focus:border-[#0071e3]"
-          />
-        </label>
-
-        {err && <p className="mt-3 text-[13px] text-[#d70015]">{err}</p>}
-        <div className="mt-4 flex justify-end gap-2">
-          <button type="button" onClick={() => { setOpen(false); reset(); }} className="px-3 py-2 text-sm text-[#515154]">Cancel</button>
-          <button disabled={busy || !file} className="rounded-full bg-[#1d1d1f] px-5 py-2 text-sm font-medium text-white disabled:opacity-40">
-            {busy ? "Uploading…" : "Upload"}
           </button>
+          <input
+            ref={fileRef} type="file" accept=".pdf,application/pdf" required
+            className="hidden" onChange={(e) => pick(e.target.files?.[0] ?? null)}
+          />
+
+          <label className="mt-3 block">
+            <span className="text-[12.5px] font-semibold text-white/60">Name (optional)</span>
+            <input
+              value={title}
+              onChange={(e) => { setTitle(e.target.value); setTouchedTitle(true); }}
+              placeholder="Taken from the file name"
+              className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/35"
+            />
+          </label>
+
+          {err && <p className="mt-3 text-[13px] text-[#ff8a8a]">{err}</p>}
+          <div className="mt-4 flex justify-end gap-2">
+            <button type="button" onClick={() => { setOpen(false); reset(); }} className="px-3 py-2 text-sm text-white/60 hover:text-white">Cancel</button>
+            <button disabled={busy || !file} className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black disabled:opacity-40">
+              {busy ? "Uploading…" : "Upload"}
+            </button>
+          </div>
         </div>
       </form>
     </div>

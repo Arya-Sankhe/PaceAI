@@ -3,84 +3,480 @@
 @tailwind utilities;
 
 :root {
-  --bg: #fafaf9;
-  --surface: #ffffff;
-  --surface-2: #fbfbfc;
-  --border: rgba(0, 0, 0, 0.08);
-  --border-soft: rgba(0, 0, 0, 0.05);
-  --text: #1d1d1f;
-  --text-2: #515154;
-  --text-3: #6e6e73;
-  --accent: #0071e3;
-  --ok: #1d8127;
-  --ok-bg: rgba(29, 129, 39, 0.09);
-  --warn: #b45309;
-  --warn-bg: rgba(180, 83, 9, 0.09);
-  --err: #d70015;
-  --err-bg: rgba(215, 0, 21, 0.07);
-  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.04);
+  --line-light-soft: rgba(255, 255, 255, 0.09);
+  --text-bright: #f4f6f5;
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-collapse: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-html { color-scheme: light; }
+html {
+  color-scheme: dark;
+  height: 100%;
+}
 
 body {
   @apply antialiased;
-  background: var(--bg);
-  color: var(--text);
-  font-family: system-ui, -apple-system, "SF Pro Text", "Segoe UI", sans-serif;
+  height: 100dvh;
+  overflow: hidden;
+  background: #060607;
+  color: var(--text-bright);
+  font-family: ui-sans-system, -apple-system, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
   font-feature-settings: "ss01" on, "cv11" on;
   -webkit-font-smoothing: antialiased;
 }
 
-.font-display {
-  font-family: system-ui, -apple-system, "SF Pro Display", "Segoe UI", sans-serif;
-  letter-spacing: -0.02em;
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+  z-index: 0;
 }
 
-.font-mono, code {
+.font-display {
+  font-family: ui-sans-system, -apple-system, "SF Pro Display", "Inter", "Segoe UI", sans-serif;
+  letter-spacing: -0.035em;
+}
+
+.font-mono,
+code {
   font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
   font-variant-numeric: tabular-nums;
 }
 
-.tabular { font-variant-numeric: tabular-nums; }
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
 
-/* Shared premium surfaces */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border-soft);
+/* ---------- Fullscreen shell: black rail flush left, sage panel inset in a
+   thin black frame with fully rounded corners. ------------------------------ */
+
+.app-shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  height: 100dvh;
+  overflow: hidden;
+  background: #060607;
+  padding: 8px;
+  animation: frame-in 450ms var(--ease-out) both;
+}
+
+@media (min-width: 1024px) {
+  .app-shell {
+    padding: 8px 8px 8px 0;
+  }
+}
+
+@keyframes frame-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.wafer-main-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  background: #060607;
+}
+
+@media (min-width: 1024px) {
+  .wafer-main-wrap {
+    padding-left: 8px;
+  }
+}
+
+.wafer-main {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  border-radius: 22px;
+  background:
+    radial-gradient(1100px 480px at 50% -140px, rgba(255, 255, 255, 0.32), transparent 60%),
+    radial-gradient(820px 620px at 93% 108%, rgba(232, 213, 175, 0.30), transparent 62%),
+    radial-gradient(920px 640px at 5% 106%, rgba(150, 185, 215, 0.30), transparent 60%),
+    radial-gradient(130% 120% at 50% 42%, transparent 52%, rgba(8, 15, 25, 0.24) 100%),
+    linear-gradient(180deg, #c2d3e2 0%, #93a9c0 38%, #4d6a88 72%, #2b405a 100%);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* Bottom-anchored dot-matrix wallpaper. It lives on its own layer pinned to
+   the panel's bottom edge so it can never float mid-screen. */
+.wafer-clouds {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: radial-gradient(rgba(255, 246, 220, 0.5) 1px, transparent 1.4px);
+  background-size: 7px 7px;
+  background-position: center bottom;
+  background-repeat: repeat;
+  -webkit-mask-image:
+    radial-gradient(420px 210px at 12% 100%, black 30%, transparent 76%),
+    radial-gradient(560px 250px at 55% 100%, black 35%, transparent 78%),
+    radial-gradient(460px 220px at 88% 100%, black 35%, transparent 77%),
+    linear-gradient(180deg, transparent 42%, black 88%);
+  mask-image:
+    radial-gradient(420px 210px at 12% 100%, black 30%, transparent 76%),
+    radial-gradient(560px 250px at 55% 100%, black 35%, transparent 78%),
+    radial-gradient(460px 220px at 88% 100%, black 35%, transparent 77%),
+    linear-gradient(180deg, transparent 42%, black 88%);
+  opacity: 0.55;
+}
+
+/* The real scroll container — content scrolls above the wallpaper layer. */
+.wafer-scroll {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+
+.wafer-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+.wafer-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 99px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.wafer-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- Surfaces ---------- */
+
+.glass {
+  background: linear-gradient(180deg, rgba(16, 21, 20, 0.42), rgba(16, 21, 20, 0.3));
+  border: 1px solid var(--line-light-soft);
+  border-radius: 22px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 18px 44px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.glass-soft {
+  background: rgba(8, 12, 11, 0.26);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
-  box-shadow: var(--card-shadow);
+  backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.07) inset, 0 14px 34px rgba(0, 0, 0, 0.16);
 }
 
-.card-flat {
-  background: var(--surface);
-  border: 1px solid var(--border-soft);
-  border-radius: 16px;
+.black-card {
+  position: relative;
+  background: radial-gradient(120% 140% at 80% 0%, #17171c 0%, #0a0a0d 52%, #050506 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255, 255, 255, 0.08) inset;
+  overflow: hidden;
 }
 
-.hairline { border-color: var(--border-soft); }
-
-button, a, [role="button"] {
-  transition: transform 100ms var(--ease-out), opacity 150ms var(--ease-out), background-color 150ms var(--ease-out);
+.black-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 8%;
+  right: 8%;
+  height: 1.5px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, transparent, #ff5d8f 18%, #a78bfa 42%, #67e8f9 62%, #e8ff6a 82%, transparent);
+  opacity: 0.9;
+  filter: blur(0.3px);
 }
-button:active, a:active, [role="button"]:active {
+
+.black-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.16) 0.7px, transparent 0.9px);
+  background-size: 9px 9px;
+  mask-image: radial-gradient(420px 300px at 78% 50%, black 20%, transparent 72%);
+  -webkit-mask-image: radial-gradient(420px 300px at 78% 50%, black 20%, transparent 72%);
+  opacity: 0.35;
+}
+/* ---------- Sidebar ---------- */
+
+.side-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 13px;
+  padding: 0 11px;
+  font-size: 13.8px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.58);
+  border: 1px solid transparent;
+  white-space: nowrap;
+  transition: background 220ms var(--ease-out), color 220ms var(--ease-out), transform 120ms var(--ease-out),
+    border-color 220ms var(--ease-out), box-shadow 220ms var(--ease-out),
+    padding 620ms var(--ease-collapse), gap 500ms var(--ease-collapse);
+}
+
+.side-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.side-item:active {
   transform: scale(0.97);
 }
 
-/* ui-ux-pro-max verified rules: focus-states (2px ring), tap-delay, state-clarity */
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 6px;
+.side-item[data-active="true"] {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 8px 22px rgba(0, 0, 0, 0.35);
 }
 
-button {
-  touch-action: manipulation;
+.side-item[data-active="true"]::before {
+  content: "";
+  position: absolute;
+  left: -11px;
+  top: 22%;
+  bottom: 22%;
+  width: 3px;
+  border-radius: 99px;
+  background: #fff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.7);
 }
 
-a.card:hover {
-  border-color: rgba(0, 0, 0, 0.12);
+.side-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: background 220ms var(--ease-out), transform 220ms var(--ease-spring);
+}
+
+.side-item[data-active="true"] .side-icon {
+  background: rgba(255, 255, 255, 0.94);
+  color: #0a0a0c;
+  border-color: transparent;
+}
+
+.side-item:hover .side-icon {
+  transform: translateY(-1px);
+}
+
+.side-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+  transition: max-width 600ms var(--ease-collapse), opacity 160ms ease-out, transform 320ms var(--ease-collapse);
+}
+
+.side-section {
+  transition: opacity 160ms ease-out;
+}
+
+.side-extra {
+  max-width: 420px;
+  transition: max-width 600ms var(--ease-collapse), opacity 160ms ease-out, transform 320ms var(--ease-collapse);
+}
+
+/* labels fade back in only once the rail has mostly reopened */
+aside:not(.sidebar-collapsed) .side-label,
+aside:not(.sidebar-collapsed) .side-section {
+  transition-delay: 260ms;
+}
+
+.sidebar-collapsed .side-label,
+.sidebar-collapsed .side-section,
+.sidebar-collapsed .side-extra {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-collapsed .side-label {
+  max-width: 0;
+  transform: translateX(-8px);
+}
+
+.sidebar-collapsed .side-extra {
+  max-width: 0;
+  min-width: 0;
+  transform: translateX(-6px);
+}
+
+.sidebar-collapsed .side-item {
+  padding: 0 9px;
+  gap: 0;
+}
+
+.sidebar-collapsed .side-item[data-active="true"]::before {
+  display: none;
+}
+
+/* narrower rail padding when collapsed — icons stay 30px, only black shrinks */
+.sidebar-collapsed .side-shell {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.sidebar-collapsed .brand-toggle {
+  flex: 1 1 0%;
+  padding: 6px 9px;
+}
+
+/* collapsed P morphs to the exact 30px icon box, so it sits pixel-identical
+   on the icon column instead of merely sharing a center */
+.brand-p {
+  transition: width 620ms var(--ease-collapse), height 620ms var(--ease-collapse),
+    font-size 500ms var(--ease-collapse), border-radius 620ms var(--ease-collapse);
+}
+.sidebar-collapsed .brand-p {
+  width: 30px;
+  height: 30px;
+  font-size: 14px;
+  border-radius: 9px;
+}
+
+/* brand row mirrors the nav-row geometry (14px shell + 11px pad) so the P
+   sits on the exact icon column in both states and only ever glides */
+.brand-row {
+  padding-left: 14px;
+  padding-right: 14px;
+  transition: padding 620ms var(--ease-collapse);
+}
+.sidebar-collapsed .brand-row {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.brand-toggle {
+  transition: padding 620ms var(--ease-collapse), gap 500ms var(--ease-collapse),
+    background-color 200ms var(--ease-out);
+  padding: 6px 11px;
+}
+
+/* collapse chevron — visible only when open, melts away with the rail */
+.collapse-btn {
+  overflow: hidden;
+  transition: width 550ms var(--ease-collapse), opacity 200ms ease-out, background-color 200ms var(--ease-out),
+    color 200ms var(--ease-out);
+}
+.sidebar-collapsed .collapse-btn {
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* collapsed machine tiles show 01/02 numerals instead of status dots */
+.machine-num {
+  color: rgba(255, 255, 255, 0.62);
+}
+.sidebar-collapsed .machine-num {
+  display: inline;
+}
+.sidebar-collapsed .machine-dot {
+  display: none;
+}
+.side-item[data-active="true"] .machine-num {
+  color: #0a0a0c;
+}
+
+/* rows that mix icons + labels outside .side-item:
+   the flex gap breathes with the rail so nothing drifts sideways */
+.nogap {
+  transition: gap 500ms var(--ease-collapse);
+}
+.sidebar-collapsed .nogap {
+  gap: 0;
+}
+
+/* ---------- Entrance choreography ---------- */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.99);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.enter {
+  animation: rise 650ms var(--ease-spring) both;
+}
+
+.enter-1 { animation-delay: 60ms; }
+.enter-2 { animation-delay: 130ms; }
+.enter-3 { animation-delay: 200ms; }
+.enter-4 { animation-delay: 280ms; }
+.enter-5 { animation-delay: 360ms; }
+.enter-6 { animation-delay: 440ms; }
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+@keyframes stream-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.82); }
+}
+.stream-pulse {
+  animation: stream-pulse 2.2s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes live-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.55); }
+  50% { box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); }
+}
+.live-dot {
+  animation: live-dot 2.4s ease-out infinite;
+}
+
+@keyframes fault-blink {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 93, 93, 0.5); }
+  50% { box-shadow: 0 0 0 7px rgba(255, 93, 93, 0); }
+}
+.fault-dot {
+  animation: fault-blink 1.8s ease-out infinite;
+}
+
+/* hover lift for premium cards */
+.lift {
+  transition: transform 280ms var(--ease-spring), box-shadow 280ms var(--ease-out), border-color 220ms var(--ease-out),
+    background-color 220ms var(--ease-out);
+}
+.lift:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1) inset, 0 22px 50px rgba(0, 0, 0, 0.28);
 }
 
 .skip-link {
@@ -88,8 +484,8 @@ a.card:hover {
   left: -9999px;
   top: 0;
   z-index: 100;
-  background: #1d1d1f;
-  color: #fff;
+  background: #fff;
+  color: #000;
   padding: 10px 16px;
   border-radius: 0 0 12px 0;
   font-size: 13.5px;
@@ -97,18 +493,19 @@ a.card:hover {
 }
 .skip-link:focus-visible {
   left: 0;
-  outline-color: #fff;
-  outline-offset: -4px;
 }
 
-/* Live telemetry pulse. Data-driven motion only — the global
-   prefers-reduced-motion guard below renders it static. */
-@keyframes stream-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+  border-radius: 8px;
 }
-.stream-pulse {
-  animation: stream-pulse 2.2s ease-in-out infinite;
+.wafer-main :focus-visible {
+  outline-color: #0a0a0c;
+}
+
+button {
+  touch-action: manipulation;
 }
 
 @media (prefers-reduced-motion: reduce) {
