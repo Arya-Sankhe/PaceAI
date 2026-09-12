@@ -1,0 +1,12 @@
+# Local-only override. Docker Compose merges this over compose.yaml automatically,
+# so the production compose.yaml / Caddyfile stay untouched.
+#
+# Serve the whole app (web + /api edge) over plain HTTP on :3100. Caddy's TLS edge
+# is what produced the untrusted self-signed cert, and Next.js bakes the /api
+# rewrite destination at build time, so Caddy still owns the /api/* route.
+services:
+  caddy:
+    ports: !override
+      - "3100:3100"
+    environment:
+      DOMAIN: ":3100"

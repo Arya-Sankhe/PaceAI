@@ -346,28 +346,16 @@ aside:not(.sidebar-collapsed) .side-section {
   padding: 6px 9px;
 }
 
-/* collapsed P morphs to the exact 30px icon box, so it sits pixel-identical
-   on the icon column instead of merely sharing a center */
-.brand-p {
-  transition: width 620ms var(--ease-collapse), height 620ms var(--ease-collapse),
-    font-size 500ms var(--ease-collapse), border-radius 620ms var(--ease-collapse);
-}
-.sidebar-collapsed .brand-p {
-  width: 30px;
-  height: 30px;
-  font-size: 14px;
-  border-radius: 9px;
-}
-
-/* brand row mirrors the nav-row geometry (14px shell + 11px pad) so the P
-   sits on the exact icon column in both states and only ever glides */
+/* The shell already supplies the nav rail's left inset, so the brand row adds
+   none of its own — that keeps the P on the same icon column as every nav row
+   in both states. */
 .brand-row {
-  padding-left: 14px;
+  padding-left: 0;
   padding-right: 14px;
-  transition: padding 620ms var(--ease-collapse);
+  transition: padding-right 620ms var(--ease-collapse);
 }
 .sidebar-collapsed .brand-row {
-  padding-left: 10px;
+  padding-left: 0;
   padding-right: 10px;
 }
 .brand-toggle {

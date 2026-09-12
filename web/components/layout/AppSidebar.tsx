@@ -57,7 +57,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           className="nogap brand-toggle flex min-w-0 items-center gap-2.5 rounded-xl transition-colors hover:bg-white/[0.06]"
         >
-          <span className="brand-p flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-white text-[17px] font-bold tracking-tighter text-black shadow-[0_0_24px_rgba(255,255,255,0.25)]">
+          <span className="brand-p flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] bg-white text-[14px] font-bold tracking-tighter text-black shadow-[0_0_24px_rgba(255,255,255,0.25)]">
             P
           </span>
           <span className="side-extra text-left leading-tight">
@@ -121,9 +121,6 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
           <>
             <div className="side-section mb-1 mt-5 flex items-center gap-2 px-2 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/35">
               <span className="truncate">{activeMachine?.short ?? "Machine"}</span>
-              <span className="side-extra ml-auto flex h-4 w-4 items-center justify-center rounded-full bg-emerald-400/15 text-[9px] font-bold text-emerald-300">
-                •
-              </span>
             </div>
             {VIEWS.map((v) => {
               const Icon = v.icon;
