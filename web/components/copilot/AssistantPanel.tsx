@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Send } from "lucide-react";
 import type { OrbState } from "thinking-orbs";
 import { ScaledOrb } from "@/components/copilot/ScaledOrb";
 import { useCopilotStream } from "@/hooks/useCopilotStream";
+import { useProgressiveAnswer } from "@/hooks/useProgressiveAnswer";
 import { ChatMessage } from "@/components/copilot/ChatMessage";
-import { CitationPill } from "@/components/copilot/CitationPill";
 
 const PRESETS = [
   "Why is the front heater cold?",
@@ -22,11 +22,40 @@ const ORB_FOR_STEP: Record<string, OrbState> = {
   generating: "solving",
 };
 
+// Draw the dense 64px design down to this footprint, so the space is filled
+// with more dots rather than the sparse 20px design's dots being enlarged.
+const INLINE_ORB_PX = 50;
+const COLUMN = "mx-auto w-full max-w-[900px]";
+
+const BOTTOM_SLACK = 48;
+
 export function AssistantPanel({ machineKey }: { machineKey: string }) {
   const [input, setInput] = useState("");
-  const { busy, status, step, citations, answer, error, ask } = useCopilotStream(machineKey);
+  const { busy, status, step, answer, error, ask } = useCopilotStream(machineKey);
+  const { answer: shown, streaming } = useProgressiveAnswer(answer);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Auto-follow the growing answer until the reader scrolls away; re-arms when
+  // they return to the bottom, or when they ask a new question.
+  const follow = useRef(true);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !follow.current) return;
+    el.scrollTop = el.scrollHeight;
+  }, [shown, streaming, status, busy]);
+
+  // Our own scrolls always land at the bottom, so anything short of the bottom
+  // can only be the reader — no need to guess at wheel/touch intent.
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    follow.current = el.scrollHeight - el.scrollTop - el.clientHeight <= BOTTOM_SLACK;
+  };
+
   const submit = (text: string) => {
     if (!text.trim() || busy) return;
+    follow.current = true;
     ask(text);
     setInput("");
   };
@@ -74,7 +103,7 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
 
       {empty ? (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 py-10">
-          <div className="assistant-rise w-full max-w-[720px]">
+          <div className={`assistant-rise ${COLUMN}`}>
             {/* decorative: the copy below carries the meaning, so keep it out of the a11y tree */}
             <div className="mb-5 flex justify-center">
               <ScaledOrb state="composing" size={64} scale={2.5} />
@@ -100,27 +129,20 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="assistant-rise min-h-0 flex-1 overflow-y-auto px-6 py-8">
-            <div className="mx-auto w-full max-w-[720px] space-y-4">
-              {citations.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {citations.map((c, i) => (
-                    <CitationPill key={i} c={c} />
-                  ))}
-                </div>
-              )}
+          <div
+            ref={scrollRef}
+            onScroll={onScroll}
+            className="assistant-rise min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-8"
+          >
+            <div className={`${COLUMN} space-y-5`}>
               {(status || busy) && (
                 <p className="flex items-center gap-3 text-[13.5px] text-white/55">
                   {/* the status text beside it already announces the step */}
-                  <ScaledOrb state={orbState} size={20} scale={2.5} />
+                  <ScaledOrb state={orbState} size={64} scale={INLINE_ORB_PX / 64} />
                   {status || "Thinking…"}
                 </p>
               )}
-              {answer && (
-                <div className="enter rounded-2xl border border-white/[0.09] bg-white/[0.04] p-5">
-                  <ChatMessage answer={answer} />
-                </div>
-              )}
+              {shown && <ChatMessage answer={shown} />}
               {error && (
                 <p className="rounded-2xl border border-red-400/25 bg-red-400/10 px-4 py-3 text-[13.5px] text-red-100">
                   {error === "diagnostic_unavailable"
@@ -131,7 +153,7 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
             </div>
           </div>
           <div className="px-6 pb-7 pt-1">
-            <div className="mx-auto w-full max-w-[720px]">{composer}</div>
+            <div className={COLUMN}>{composer}</div>
           </div>
         </div>
       )}
