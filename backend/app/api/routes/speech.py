@@ -16,8 +16,11 @@ import contextlib
 import json
 from urllib.parse import urlencode
 
+import httpx
 import websockets
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import Response
+from pydantic import BaseModel, Field
 
 from app.api import deps
 from app.core.config import settings
@@ -141,3 +144,44 @@ async def _pump_events(client: WebSocket, upstream) -> None:
                 return
         except ValueError:
             pass
+
+
+SARVAM_TTS_URL = "https://api.sarvam.ai/text-to-speech"
+SARVAM_TTS_MODEL = "bulbul:v3"
+# Documented REST ceiling. The browser splits a long answer into several calls.
+TTS_MAX_CHARS = 2500
+
+
+class SpeakIn(BaseModel):
+    text: str = Field(min_length=1, max_length=TTS_MAX_CHARS)
+
+
+@router.post("/speech/speak")
+async def speak(body: SpeakIn, _user=Depends(deps.require_user)):
+    """Synthesise one line of speech and hand back playable WAV.
+
+    Returns raw audio rather than the provider's base64 so the browser can play
+    it straight from a blob URL. The subscription key stays here.
+    """
+    if not settings.SARVAM_API_KEY:
+        raise HTTPException(503, "speech_not_configured")
+    try:
+        async with httpx.AsyncClient(timeout=30) as http:
+            upstream = await http.post(
+                SARVAM_TTS_URL,
+                headers={"api-subscription-key": settings.SARVAM_API_KEY},
+                json={
+                    "text": body.text,
+                    "language_code": settings.SARVAM_TTS_LANGUAGE,
+                    "speaker": settings.SARVAM_TTS_SPEAKER,
+                    "model": SARVAM_TTS_MODEL,
+                },
+            )
+        upstream.raise_for_status()
+        wav = base64.b64decode("".join(upstream.json().get("audios") or []))
+    except Exception as exc:  # noqa: BLE001 — provider fault or malformed payload
+        print(f"tts error: {type(exc).__name__}: {exc}")
+        raise HTTPException(502, "tts_unavailable") from exc
+    if not wav:
+        raise HTTPException(502, "tts_empty")
+    return Response(content=wav, media_type="audio/wav")

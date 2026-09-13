@@ -2,13 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Mic, Send } from "lucide-react";
-import type { OrbState } from "thinking-orbs";
+import { AudioLines, Mic, Send } from "lucide-react";
 import { ScaledOrb } from "@/components/copilot/ScaledOrb";
-import { useCopilotStream } from "@/hooks/useCopilotStream";
+import { ChatMessage } from "@/components/copilot/ChatMessage";
+import { VoiceMode } from "@/components/copilot/VoiceMode";
+import { useCopilotStream, type Diagnosis } from "@/hooks/useCopilotStream";
 import { useDictation } from "@/hooks/useDictation";
 import { useProgressiveAnswer } from "@/hooks/useProgressiveAnswer";
-import { ChatMessage } from "@/components/copilot/ChatMessage";
+import { useSpeech } from "@/hooks/useSpeech";
+import { useVoiceAgent } from "@/hooks/useVoiceAgent";
+import { ORB_FOR_STEP, spokenSummary } from "@/lib/voice";
 
 const PRESETS = [
   "Why is the front heater cold?",
@@ -16,30 +19,82 @@ const PRESETS = [
   "What checks before touching SSR 2?",
 ];
 
-// The stream reports raw steps; give each one an orb verb that reads like it.
-const ORB_FOR_STEP: Record<string, OrbState> = {
-  "reading telemetry": "connecting",
-  "retrieving manuals": "searching",
-  generating: "solving",
-};
-
 // Draw the dense 64px design down to this footprint, so the space is filled
 // with more dots rather than the sparse 20px design's dots being enlarged.
 const INLINE_ORB_PX = 50;
 const COLUMN = "mx-auto w-full max-w-[900px]";
 
 const BOTTOM_SLACK = 48;
+// Matches the .voice-layer--out / .voice-orb-shrink duration in globals.css.
+const CLOSE_MS = 260;
 
 export function AssistantPanel({ machineKey }: { machineKey: string }) {
   const [input, setInput] = useState("");
+  const [voice, setVoice] = useState(false);
+  const [closing, setClosing] = useState(false);
   const { busy, status, step, answer, error, ask } = useCopilotStream(machineKey);
   const { answer: shown, streaming } = useProgressiveAnswer(answer);
+  const { say, stop: stopSpeech, playing, caption: spokenCaption, blocked } = useSpeech();
 
-  const appendTranscript = useCallback((text: string) => {
-    setInput((current) => (current.trim() ? `${current.trim()} ${text}` : text));
-  }, []);
-  const dictate = useDictation(appendTranscript);
-  const dictating = dictate.status !== "idle";
+  // One mic, two meanings: in voice mode a transcript is a turn to answer, and
+  // otherwise it is dictation into the composer. Dispatch through a ref so the
+  // mic's start/stop stay stable and always see the current mode.
+  const inVoice = useRef(false);
+  const dispatch = useRef<(text: string) => void>(() => {});
+  const onFinal = useCallback((text: string) => dispatch.current(text), []);
+  const mic = useDictation(onFinal);
+  // Whether the question in flight was spoken, so a typed question is never
+  // read back aloud.
+  const spokenQuestion = useRef(false);
+
+  const agent = useVoiceAgent({
+    active: voice,
+    ask,
+    busy,
+    step,
+    error,
+    micStatus: mic.status,
+    micStart: mic.start,
+    micStop: mic.stop,
+    say,
+  });
+
+  useEffect(() => {
+    inVoice.current = voice;
+    dispatch.current = (text) => {
+      if (inVoice.current) {
+        spokenQuestion.current = true;
+        agent.handleUtterance(text);
+      } else {
+        setInput((current) => (current.trim() ? `${current.trim()} ${text}` : text));
+      }
+    };
+  });
+
+  const closeVoice = useCallback(
+    (cancelSpeech = false) => {
+      if (cancelSpeech) stopSpeech();
+      setClosing(true);
+      window.setTimeout(() => {
+        setVoice(false);
+        setClosing(false);
+      }, CLOSE_MS);
+    },
+    [stopSpeech],
+  );
+
+  // The answer is ready: speak the gist and hand the screen back to the chat,
+  // which streams the full detail. The speech outlives the overlay, so it keeps
+  // playing as the orb shrinks away.
+  const spoken = useRef<Diagnosis | null>(null);
+  useEffect(() => {
+    if (!answer || spoken.current === answer) return;
+    spoken.current = answer;
+    if (!spokenQuestion.current) return;
+    spokenQuestion.current = false;
+    void say([spokenSummary(answer)], true);
+    closeVoice();
+  }, [answer, say, closeVoice]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   // Auto-follow the growing answer until the reader scrolls away; re-arms when
@@ -62,23 +117,26 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
 
   const submit = (text: string) => {
     if (!text.trim() || busy) return;
+    spokenQuestion.current = false;
+    stopSpeech();
     follow.current = true;
     ask(text);
     setInput("");
   };
 
   const empty = !answer && !status && !error && !busy;
-  const orbState: OrbState = ORB_FOR_STEP[step] ?? "working";
+  const dictating = !voice && mic.status !== "idle";
+  const canSend = input.trim().length > 0;
 
   const composer = (
     <div>
-      {(dictating || dictate.error) && (
+      {(dictating || mic.error) && (
         <div className="mb-2 flex items-center gap-2 px-2 text-[13px]">
           {dictating && <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[#ff5d5d]" />}
-          <span className={`truncate ${dictate.error ? "text-[#ff9a9a]" : "text-white/50"}`}>
-            {dictate.error ||
-              dictate.partial ||
-              (dictate.status === "starting" ? "Connecting microphone…" : "Listening…")}
+          <span className={`truncate ${mic.error ? "text-[#ff9a9a]" : "text-white/50"}`}>
+            {mic.error ||
+              mic.partial ||
+              (mic.status === "starting" ? "Connecting microphone…" : "Listening…")}
           </span>
         </div>
       )}
@@ -98,7 +156,7 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
         />
         <button
           type="button"
-          onClick={dictate.toggle}
+          onClick={mic.toggle}
           aria-label={dictating ? "Stop dictation" : "Dictate your question"}
           aria-pressed={dictating}
           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-all ${
@@ -109,14 +167,26 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
         >
           <Mic size={15} aria-hidden="true" />
         </button>
-        <button
-          type="submit"
-          disabled={busy || !input.trim()}
-          aria-label="Send"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black transition-transform hover:scale-105 active:scale-95 disabled:opacity-25 disabled:hover:scale-100"
-        >
-          <Send size={15} aria-hidden="true" />
-        </button>
+        {/* Empty composer offers the voice agent; typing swaps in send. */}
+        {canSend ? (
+          <button
+            type="submit"
+            disabled={busy}
+            aria-label="Send"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black transition-transform hover:scale-105 active:scale-95 disabled:opacity-25 disabled:hover:scale-100"
+          >
+            <Send size={15} aria-hidden="true" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setVoice(true)}
+            aria-label="Start the voice agent"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black transition-transform hover:scale-105 active:scale-95"
+          >
+            <AudioLines size={15} aria-hidden="true" />
+          </button>
+        )}
       </form>
     </div>
   );
@@ -167,10 +237,29 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
             className="assistant-rise min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-8"
           >
             <div className={`${COLUMN} space-y-5`}>
+              {/* Only visible once the voice overlay has handed the screen back. */}
+              {blocked && (
+                <p className="text-[12.5px] text-[#ff9a9a]">
+                  The browser blocked audio playback. Check autoplay and media permissions for this site.
+                </p>
+              )}
+              {playing && (
+                <div className="flex items-center gap-2 self-start rounded-full border border-white/10 bg-white/[0.05] py-1.5 pl-3 pr-2 text-[12.5px] text-white/55">
+                  <AudioLines size={13} aria-hidden="true" className="text-white/70" />
+                  Reading the summary
+                  <button
+                    type="button"
+                    onClick={stopSpeech}
+                    className="ml-1 rounded-full px-2 py-0.5 text-[12px] font-medium text-white/45 transition-colors hover:bg-white/10 hover:text-white"
+                  >
+                    Stop
+                  </button>
+                </div>
+              )}
               {(status || busy) && (
                 <p className="flex items-center gap-3 text-[13.5px] text-white/55">
                   {/* the status text beside it already announces the step */}
-                  <ScaledOrb state={orbState} size={64} scale={INLINE_ORB_PX / 64} />
+                  <ScaledOrb state={ORB_FOR_STEP[step] ?? "working"} size={64} scale={INLINE_ORB_PX / 64} />
                   {status || "Thinking…"}
                 </p>
               )}
@@ -188,6 +277,22 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
             <div className={COLUMN}>{composer}</div>
           </div>
         </div>
+      )}
+
+      {/* Overlaid rather than swapped, so its opaque background fades over the
+          chat and reads as the content dissolving while the orb grows. */}
+      {(voice || closing) && (
+        <VoiceMode
+          phase={agent.phase}
+          orb={agent.orb}
+          caption={
+            agent.phase === "listening"
+              ? mic.partial || "Listening…"
+              : spokenCaption || agent.transcript
+          }
+          closing={closing}
+          onClose={() => closeVoice(true)}
+        />
       )}
     </section>
   );

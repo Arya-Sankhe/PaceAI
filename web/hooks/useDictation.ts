@@ -40,6 +40,16 @@ export function useDictation(onFinal: (text: string) => void) {
   const context = useRef<AudioContext | null>(null);
   const media = useRef<MediaStream | null>(null);
   const worklet = useRef<AudioWorkletNode | null>(null);
+  // Set when the caller is shutting the session down and does not want the
+  // trailing transcript it flushes out.
+  const discard = useRef(false);
+
+  // Read the transcript callback through a ref so start/stop keep a stable
+  // identity for callers that drive them from effects.
+  const finalRef = useRef(onFinal);
+  useEffect(() => {
+    finalRef.current = onFinal;
+  });
 
   const teardownAudio = useCallback(() => {
     worklet.current = null;
@@ -50,25 +60,30 @@ export function useDictation(onFinal: (text: string) => void) {
     setPartial("");
   }, []);
 
-  const stop = useCallback(() => {
-    const ws = socket.current;
-    const node = worklet.current;
-    setStatus("idle");
-    if (!ws || ws.readyState !== WebSocket.OPEN || !node) {
-      ws?.close();
-      teardownAudio();
-      return;
-    }
-    // Send the worklet's residual audio, then tell the server we are done. It
-    // keeps the socket open until the last transcript comes back.
-    void flushWorklet(node, ws).then(() => {
-      teardownAudio();
-      ws.send(JSON.stringify({ event: "stop" }));
-    });
-  }, [teardownAudio]);
+  const stop = useCallback(
+    (opts?: { discard?: boolean }) => {
+      discard.current = !!opts?.discard;
+      const ws = socket.current;
+      const node = worklet.current;
+      setStatus("idle");
+      if (!ws || ws.readyState !== WebSocket.OPEN || !node) {
+        ws?.close();
+        teardownAudio();
+        return;
+      }
+      // Send the worklet's residual audio, then tell the server we are done. It
+      // keeps the socket open until the last transcript comes back.
+      void flushWorklet(node, ws).then(() => {
+        teardownAudio();
+        ws.send(JSON.stringify({ event: "stop" }));
+      });
+    },
+    [teardownAudio],
+  );
 
   const start = useCallback(async () => {
     if (socket.current) return;
+    discard.current = false;
     setError(null);
     setPartial("");
     setStatus("starting");
@@ -110,7 +125,7 @@ export function useDictation(onFinal: (text: string) => void) {
         if (message.event === "transcript.partial") setPartial(message.text ?? "");
         else if (message.event === "transcript.final") {
           setPartial("");
-          if (message.text) onFinal(message.text);
+          if (message.text && !discard.current) finalRef.current(message.text);
         } else if (message.event === "error") setError(message.message ?? "speech_failed");
       };
       next.onclose = () => {
@@ -136,7 +151,7 @@ export function useDictation(onFinal: (text: string) => void) {
           : "Could not start dictation.",
       );
     }
-  }, [onFinal, teardownAudio]);
+  }, [teardownAudio]);
 
   useEffect(
     () => () => {
@@ -150,6 +165,8 @@ export function useDictation(onFinal: (text: string) => void) {
     status,
     partial,
     error,
+    start,
+    stop,
     toggle: () => (status === "idle" ? start() : stop()),
   };
 }

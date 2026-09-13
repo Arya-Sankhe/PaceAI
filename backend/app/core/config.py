@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     # Sarvam speech-to-text (realtime streaming WebSocket)
     SARVAM_API_KEY: str = ""
     SARVAM_STT_LANGUAGE: str = "en-IN"
+    # Sarvam text-to-speech (Bulbul). Kept separate from the STT language: the
+    # recogniser accepts "auto" but the synthesiser needs a concrete code.
+    SARVAM_TTS_LANGUAGE: str = "en-IN"
+    SARVAM_TTS_SPEAKER: str = "shubh"
     
     # Storage signed URL TTL
     SIGNED_URL_EXPIRY_SECONDS: int = 300
