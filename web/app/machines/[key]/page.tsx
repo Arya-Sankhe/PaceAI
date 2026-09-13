@@ -334,12 +334,7 @@ function CockpitInner() {
         </div>
       )}
 
-      {tab === "assistant" && (
-        <div className="enter space-y-4">
-          <SectionIntro title="Assistant" sub="Grounded in telemetry and the manual." />
-          <AssistantPanel machineKey={key} />
-        </div>
-      )}
+      {tab === "assistant" && <AssistantPanel machineKey={key} />}
     </div>
   );
 }

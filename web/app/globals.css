@@ -496,6 +496,80 @@ button {
   touch-action: manipulation;
 }
 
+/* ---------- Assistant: dark panel ---------- */
+
+/* The dark colour is painted by the panel's OWN ::after, so it inherits the
+   panel's exact box and its rounded overflow clip. Nothing can drift out of
+   alignment the way a separately positioned overlay can. It wipes in from the
+   left edge, which sits at the rail. */
+.wafer-main:has(.assistant-surface)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background:
+    radial-gradient(120% 70% at 50% -15%, rgba(255, 255, 255, 0.07), transparent 62%),
+    #171719;
+  animation: assistant-wipe 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Lift the assistant above the dark layer. */
+.wafer-main:has(.assistant-surface) .wafer-scroll {
+  z-index: 3;
+}
+
+@keyframes assistant-wipe {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+/* Transparent layout box pinned to the panel, so the composer centres on the
+   panel rather than the whole viewport. --rail-width comes from AppShell. */
+.assistant-surface {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--text-bright);
+  transition: left 620ms var(--ease-collapse);
+}
+
+@media (min-width: 1024px) {
+  .assistant-surface {
+    left: calc(var(--rail-width, 268px) + 8px);
+  }
+}
+
+.assistant-rise {
+  animation: assistant-rise 460ms cubic-bezier(0.16, 1, 0.3, 1) 100ms both;
+}
+
+@keyframes assistant-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.assistant-composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 6px 6px 6px 14px;
+  transition: border-color 200ms var(--ease-out), background-color 200ms var(--ease-out);
+}
+
+.assistant-composer:focus-within {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

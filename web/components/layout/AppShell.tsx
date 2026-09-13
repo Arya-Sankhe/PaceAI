@@ -28,7 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" style={{ "--rail-width": collapsed ? "68px" : "268px" } as React.CSSProperties}>
       {/* ------- Black sidebar rail ------- */}
       <aside
         aria-label="Primary navigation"
@@ -36,7 +36,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           width: collapsed ? 68 : 268,
           transition: "width 620ms var(--ease-collapse)",
         }}
-        className={`hidden shrink-0 flex-col overflow-hidden bg-[#060607] transition-opacity duration-500 lg:flex ${
+        className={`relative z-40 hidden shrink-0 flex-col overflow-hidden bg-[#060607] transition-opacity duration-500 lg:flex ${
           collapsed ? "sidebar-collapsed" : ""
         } ${ready ? "opacity-100" : "opacity-0"}`}
       >

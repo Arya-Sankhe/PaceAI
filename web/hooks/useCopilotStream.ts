@@ -14,13 +14,14 @@ export interface Diagnosis {
 export function useCopilotStream(machineKey: string) {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
+  const [step, setStep] = useState("");
   const [citations, setCitations] = useState<Citation[]>([]);
   const [answer, setAnswer] = useState<Diagnosis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   async function ask(message: string) {
-    setBusy(true); setStatus(""); setCitations([]); setAnswer(null); setError(null);
+    setBusy(true); setStatus(""); setStep(""); setCitations([]); setAnswer(null); setError(null);
     try {
       const { data } = demoMode ? { data: { session: null } } : await supabase().auth.getSession();
       const res = await fetch(`/api/v1/machines/${machineKey}/chat`, {
@@ -48,7 +49,7 @@ export function useCopilotStream(machineKey: string) {
           const ev = /^event: (\w+)\ndata: ([\s\S]*)$/.exec(block);
           if (!ev) continue;
           const data = JSON.parse(ev[2]);
-          if (ev[1] === "status") setStatus(STEP[data] ?? data);
+          if (ev[1] === "status") { setStep(data); setStatus(STEP[data] ?? data); }
           else if (ev[1] === "citation") setCitations((c) => [...c, data]);
           else if (ev[1] === "delta") raw += data;
           else if (ev[1] === "completed") { setConversationId(data.conversation_id ?? null); setAnswer(data.answer); }
@@ -60,8 +61,9 @@ export function useCopilotStream(machineKey: string) {
     } finally {
       setBusy(false);
       setStatus("");
+      setStep("");
     }
   }
 
-  return { busy, status, citations, answer, error, conversationId, ask };
+  return { busy, status, step, citations, answer, error, conversationId, ask };
 }
