@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Send } from "lucide-react";
-import { ThinkingOrb, type OrbState } from "thinking-orbs";
+import type { OrbState } from "thinking-orbs";
+import { ScaledOrb } from "@/components/copilot/ScaledOrb";
 import { useCopilotStream } from "@/hooks/useCopilotStream";
 import { ChatMessage } from "@/components/copilot/ChatMessage";
 import { CitationPill } from "@/components/copilot/CitationPill";
@@ -76,7 +77,7 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
           <div className="assistant-rise w-full max-w-[720px]">
             {/* decorative: the copy below carries the meaning, so keep it out of the a11y tree */}
             <div className="mb-5 flex justify-center">
-              <ThinkingOrb state="breathing" size={64} theme="dark" aria-hidden="true" />
+              <ScaledOrb state="composing" size={64} scale={2.5} />
             </div>
             <p className="mx-auto mb-6 max-w-[46ch] text-center text-[14px] leading-relaxed text-white/55">
               Ask about a fault, a heater that won&apos;t reach temperature, or a safe check before touching a
@@ -109,9 +110,9 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
                 </div>
               )}
               {(status || busy) && (
-                <p className="flex items-center gap-2.5 text-[13.5px] text-white/55">
+                <p className="flex items-center gap-3 text-[13.5px] text-white/55">
                   {/* the status text beside it already announces the step */}
-                  <ThinkingOrb state={orbState} size={20} theme="dark" aria-hidden="true" />
+                  <ScaledOrb state={orbState} size={20} scale={2.5} />
                   {status || "Thinking…"}
                 </p>
               )}
