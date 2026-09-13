@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     GEMINI_SERVICE_TIER: str = "standard"
     EMBEDDING_MODEL: str = "gemini-embedding-2"
     EMBEDDING_DIMENSION: int = 1536
+
+    # Sarvam speech-to-text (realtime streaming WebSocket)
+    SARVAM_API_KEY: str = ""
+    SARVAM_STT_LANGUAGE: str = "en-IN"
     
     # Storage signed URL TTL
     SIGNED_URL_EXPIRY_SECONDS: int = 300

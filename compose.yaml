@@ -46,6 +46,8 @@ services:
       GEMINI_SERVICE_TIER: ${GEMINI_SERVICE_TIER:-standard}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-gemini-embedding-2}
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-1536}
+      SARVAM_API_KEY: ${SARVAM_API_KEY:-}
+      SARVAM_STT_LANGUAGE: ${SARVAM_STT_LANGUAGE:-en-IN}
     restart: unless-stopped
 
   worker:

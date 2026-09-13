@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Send } from "lucide-react";
+import { Mic, Send } from "lucide-react";
 import type { OrbState } from "thinking-orbs";
 import { ScaledOrb } from "@/components/copilot/ScaledOrb";
 import { useCopilotStream } from "@/hooks/useCopilotStream";
+import { useDictation } from "@/hooks/useDictation";
 import { useProgressiveAnswer } from "@/hooks/useProgressiveAnswer";
 import { ChatMessage } from "@/components/copilot/ChatMessage";
 
@@ -33,6 +34,12 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
   const [input, setInput] = useState("");
   const { busy, status, step, answer, error, ask } = useCopilotStream(machineKey);
   const { answer: shown, streaming } = useProgressiveAnswer(answer);
+
+  const appendTranscript = useCallback((text: string) => {
+    setInput((current) => (current.trim() ? `${current.trim()} ${text}` : text));
+  }, []);
+  const dictate = useDictation(appendTranscript);
+  const dictating = dictate.status !== "idle";
 
   const scrollRef = useRef<HTMLDivElement>(null);
   // Auto-follow the growing answer until the reader scrolls away; re-arms when
@@ -64,29 +71,54 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
   const orbState: OrbState = ORB_FOR_STEP[step] ?? "working";
 
   const composer = (
-    <form
-      className="assistant-composer"
-      onSubmit={(e) => {
-        e.preventDefault();
-        submit(input);
-      }}
-    >
-      <input
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="Ask about this machine…"
-        aria-label="Ask about this machine"
-        className="min-w-0 flex-1 bg-transparent px-1 text-[16px] text-white outline-none placeholder:text-white/35 sm:text-[15px]"
-      />
-      <button
-        type="submit"
-        disabled={busy || !input.trim()}
-        aria-label="Send"
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black transition-transform hover:scale-105 active:scale-95 disabled:opacity-25 disabled:hover:scale-100"
+    <div>
+      {(dictating || dictate.error) && (
+        <div className="mb-2 flex items-center gap-2 px-2 text-[13px]">
+          {dictating && <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[#ff5d5d]" />}
+          <span className={`truncate ${dictate.error ? "text-[#ff9a9a]" : "text-white/50"}`}>
+            {dictate.error ||
+              dictate.partial ||
+              (dictate.status === "starting" ? "Connecting microphone…" : "Listening…")}
+          </span>
+        </div>
+      )}
+      <form
+        className="assistant-composer"
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit(input);
+        }}
       >
-        <Send size={15} aria-hidden="true" />
-      </button>
-    </form>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ask about this machine…"
+          aria-label="Ask about this machine"
+          className="min-w-0 flex-1 bg-transparent px-1 text-[16px] text-white outline-none placeholder:text-white/35 sm:text-[15px]"
+        />
+        <button
+          type="button"
+          onClick={dictate.toggle}
+          aria-label={dictating ? "Stop dictation" : "Dictate your question"}
+          aria-pressed={dictating}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-all ${
+            dictating
+              ? "border-[#ff5d5d]/40 bg-[#ff5d5d]/15 text-[#ff8a8a]"
+              : "border-white/10 bg-white/[0.06] text-white/70 hover:border-white/25 hover:text-white"
+          }`}
+        >
+          <Mic size={15} aria-hidden="true" />
+        </button>
+        <button
+          type="submit"
+          disabled={busy || !input.trim()}
+          aria-label="Send"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black transition-transform hover:scale-105 active:scale-95 disabled:opacity-25 disabled:hover:scale-100"
+        >
+          <Send size={15} aria-hidden="true" />
+        </button>
+      </form>
+    </div>
   );
 
   return (

@@ -19,5 +19,7 @@ COPY --from=build /srv/.next ./.next
 COPY --from=build /srv/node_modules ./node_modules
 COPY --from=build /srv/package.json ./package.json
 COPY --from=build /srv/next.config.js ./next.config.js
+# Served at the site root; the dictation AudioWorklet is loaded from here.
+COPY --from=build /srv/public ./public
 EXPOSE 3000
 CMD ["npm", "start"]

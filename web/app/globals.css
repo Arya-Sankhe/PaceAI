@@ -566,8 +566,15 @@ button {
 }
 
 .assistant-composer:focus-within {
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.45);
   background: rgba(255, 255, 255, 0.08);
+}
+
+/* The composer already shows focus through :focus-within above. Without this,
+   the global :focus-visible ring wins on source order and draws a second box
+   around the input itself — text inputs match it on a plain mouse click. */
+.assistant-composer input:focus-visible {
+  outline: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

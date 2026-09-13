@@ -33,24 +33,33 @@ async def _jwks_keys() -> dict:
     return _jwks_cache["keys"]
 
 
+async def user_from_token(token: str) -> UUID:
+    """Validates a Supabase access token, returns the auth user id.
+
+    Split out of require_user so the speech WebSocket can reuse it: a browser
+    WebSocket cannot set an Authorization header, so its token arrives as a
+    query parameter instead.
+    """
+    kid = jwt.get_unverified_header(token)["kid"]
+    key = (await _jwks_keys())[kid]
+    payload = jwt.decode(
+        token,
+        key=jwt.PyJWK(key).key,
+        algorithms=["ES256", "RS256"],
+        issuer=settings.SUPABASE_JWT_ISSUER or None,
+        options={"verify_aud": False},
+    )
+    return UUID(payload["sub"])
+
+
 async def require_user(authorization: str = Header("")) -> UUID:
     """Validates Supabase access token, returns auth user id."""
     if settings.DEMO_MODE:
         return UUID(int=0)
     if not authorization.startswith("Bearer "):
         raise HTTPException(401, "missing_bearer")
-    token = authorization[7:]
     try:
-        kid = jwt.get_unverified_header(token)["kid"]
-        key = (await _jwks_keys())[kid]
-        payload = jwt.decode(
-            token,
-            key=jwt.PyJWK(key).key,
-            algorithms=["ES256", "RS256"],
-            issuer=settings.SUPABASE_JWT_ISSUER or None,
-            options={"verify_aud": False},
-        )
-        return UUID(payload["sub"])
+        return await user_from_token(authorization[7:])
     except (KeyError, jwt.PyJWTError):
         raise HTTPException(401, "invalid_token")
 

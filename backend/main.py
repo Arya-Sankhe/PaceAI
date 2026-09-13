@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import chat, documents, telemetry
+from app.api.routes import chat, documents, speech, telemetry
 from app.core import db
 from app.core.config import settings
 
@@ -24,6 +24,7 @@ def create_app() -> FastAPI:
     app.include_router(telemetry.router, prefix=settings.API_V1_STR, tags=["telemetry"])
     app.include_router(documents.router, prefix=settings.API_V1_STR, tags=["manuals"])
     app.include_router(chat.router, prefix=settings.API_V1_STR, tags=["copilot"])
+    app.include_router(speech.router, prefix=settings.API_V1_STR, tags=["speech"])
 
     @app.get("/health/live")
     async def live():

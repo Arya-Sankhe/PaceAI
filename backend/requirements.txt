@@ -6,6 +6,8 @@ python-dotenv==1.0.1
 supabase==2.31.0
 asyncpg==0.29.0
 httpx==0.28.1
+# uvicorn[standard] already installs this; pinned because app/api/routes/speech.py imports it directly.
+websockets==15.0.1
 # 0.1.1 was never published; this is the current stable 1.x SDK.
 google-genai==1.75.0
 pypdfium2==4.30.0
