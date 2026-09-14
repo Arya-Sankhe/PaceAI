@@ -12,6 +12,9 @@ venv/
 .env
 .env.local
 
+# Local Docker Compose override (plain-HTTP :3100 for development only)
+compose.override.yaml
+
 # Node / Next.js
 node_modules/
 .next/
