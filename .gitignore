@@ -8,9 +8,10 @@ env/
 venv/
 .venv/
 
-# Environment
-.env
-.env.local
+# Environment. Deliberately broad: these files hold live credentials, and a
+# stray .env.backup-* / .env.production would otherwise be committable.
+.env*
+!.env.example
 
 # Local Docker Compose override (plain-HTTP :3100 for development only)
 compose.override.yaml
