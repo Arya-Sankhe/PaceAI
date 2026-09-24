@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { demoMode } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 export type DictationStatus = "idle" | "starting" | "listening";
 
-type ServerEvent = { event?: string; text?: string; message?: string };
+type ServerEvent = { event?: string; text?: string; message?: string; language?: string };
 
 // Audio captured while the socket is still connecting is held here rather than
 // dropped, so the first words of a sentence survive the handshake.
@@ -32,7 +34,7 @@ function flushWorklet(worklet: AudioWorkletNode, ws: WebSocket) {
 // subscription key stays server-side. The socket has no session length cap
 // (unlike Sarvam's 30s REST endpoint) and needs raw 16kHz PCM, so audio is
 // captured with an AudioWorklet rather than MediaRecorder.
-export function useDictation(onFinal: (text: string) => void) {
+export function useDictation(onFinal: (text: string, language?: string) => void) {
   const [status, setStatus] = useState<DictationStatus>("idle");
   const [partial, setPartial] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +45,8 @@ export function useDictation(onFinal: (text: string) => void) {
   // Set when the caller is shutting the session down and does not want the
   // trailing transcript it flushes out.
   const discard = useRef(false);
+  // Bumped on stop/unmount so an in-flight start() cannot resurrect the session.
+  const generation = useRef(0);
 
   // Read the transcript callback through a ref so start/stop keep a stable
   // identity for callers that drive them from effects.
@@ -63,6 +67,7 @@ export function useDictation(onFinal: (text: string) => void) {
   const stop = useCallback(
     (opts?: { discard?: boolean }) => {
       discard.current = !!opts?.discard;
+      generation.current += 1;
       const ws = socket.current;
       const node = worklet.current;
       setStatus("idle");
@@ -83,6 +88,7 @@ export function useDictation(onFinal: (text: string) => void) {
 
   const start = useCallback(async () => {
     if (socket.current) return;
+    const gen = ++generation.current;
     discard.current = false;
     setError(null);
     setPartial("");
@@ -91,6 +97,8 @@ export function useDictation(onFinal: (text: string) => void) {
       media.current = await navigator.mediaDevices.getUserMedia({
         audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
       });
+      // A stop/unmount during any await below must not leave a live mic or socket.
+      if (gen !== generation.current) throw new Error("cancelled");
       const ctx = new AudioContext({ sampleRate: 16000 });
       context.current = ctx;
       await ctx.audioWorklet.addModule("/pcm-worklet.js");
@@ -109,8 +117,15 @@ export function useDictation(onFinal: (text: string) => void) {
       node.connect(ctx.destination); // silent: the worklet writes no output
       setStatus("listening");
 
+      // A browser WebSocket cannot set an Authorization header, so the API
+      // takes the session token as a query parameter outside demo mode.
+      const { data } = demoMode ? { data: { session: null } } : await supabase().auth.getSession();
+      const token = data.session?.access_token;
+      if (gen !== generation.current) throw new Error("cancelled");
       const next = new WebSocket(
-        `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/v1/speech/stream`,
+        `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/v1/speech/stream${
+          token ? `?token=${encodeURIComponent(token)}` : ""
+        }`,
       );
       ws = next;
       socket.current = next;
@@ -125,17 +140,25 @@ export function useDictation(onFinal: (text: string) => void) {
         if (message.event === "transcript.partial") setPartial(message.text ?? "");
         else if (message.event === "transcript.final") {
           setPartial("");
-          if (message.text && !discard.current) finalRef.current(message.text);
+          if (message.text && !discard.current) finalRef.current(message.text, message.language);
         } else if (message.event === "error") setError(message.message ?? "speech_failed");
       };
       next.onclose = () => {
         socket.current = null;
         setStatus("idle");
+        // A close we did not ask for (expired token, inactivity timeout) would
+        // otherwise leave the mic graph recording. `worklet.current` is already
+        // null after a normal stop, so this only fires on unexpected closes.
+        if (worklet.current) {
+          teardownAudio();
+          setError("Speech connection closed. Try again.");
+        }
       };
       await new Promise<void>((resolve, reject) => {
         next.onopen = () => resolve();
         next.onerror = () => reject(new Error("socket_failed"));
       });
+      if (gen !== generation.current) throw new Error("cancelled");
 
       // Replay whatever was spoken while the socket was coming up, then stream.
       for (const chunk of backlog) next.send(chunk);
@@ -145,6 +168,7 @@ export function useDictation(onFinal: (text: string) => void) {
       socket.current = null;
       teardownAudio();
       setStatus("idle");
+      if (gen !== generation.current) return; // stopped or unmounted: not an error
       setError(
         e instanceof Error && e.name === "NotAllowedError"
           ? "Microphone access is blocked."
@@ -155,6 +179,7 @@ export function useDictation(onFinal: (text: string) => void) {
 
   useEffect(
     () => () => {
+      generation.current += 1;
       socket.current?.close();
       teardownAudio();
     },

@@ -40,16 +40,35 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
   // otherwise it is dictation into the composer. Dispatch through a ref so the
   // mic's start/stop stay stable and always see the current mode.
   const inVoice = useRef(false);
-  const dispatch = useRef<(text: string) => void>(() => {});
-  const onFinal = useCallback((text: string) => dispatch.current(text), []);
+  const dispatch = useRef<(text: string, language?: string) => void>(() => {});
+  const onFinal = useCallback((text: string, language?: string) => dispatch.current(text, language), []);
   const mic = useDictation(onFinal);
   // Whether the question in flight was spoken, so a typed question is never
   // read back aloud.
   const spokenQuestion = useRef(false);
 
+  // The Q&A thread: each new question parks the previous answer above the live
+  // one so the reader can scroll back, while the newest turn keeps its reveal.
+  const [history, setHistory] = useState<{ question: string; answer: Diagnosis }[]>([]);
+  const [asked, setAsked] = useState("");
+  const latest = useRef<Diagnosis | null>(null);
+  useEffect(() => {
+    if (answer) latest.current = answer;
+  }, [answer]);
+
+  const askThreaded = useCallback(
+    (text: string, language?: string) => {
+      const previous = latest.current;
+      if (previous) setHistory((h) => [...h, { question: asked, answer: previous }]);
+      setAsked(text);
+      void ask(text, language);
+    },
+    [ask, asked],
+  );
+
   const agent = useVoiceAgent({
     active: voice,
-    ask,
+    ask: askThreaded,
     busy,
     step,
     error,
@@ -61,10 +80,10 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
 
   useEffect(() => {
     inVoice.current = voice;
-    dispatch.current = (text) => {
+    dispatch.current = (text, language) => {
       if (inVoice.current) {
         spokenQuestion.current = true;
-        agent.handleUtterance(text);
+        agent.handleUtterance(text, language);
       } else {
         setInput((current) => (current.trim() ? `${current.trim()} ${text}` : text));
       }
@@ -73,7 +92,12 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
 
   const closeVoice = useCallback(
     (cancelSpeech = false) => {
-      if (cancelSpeech) stopSpeech();
+      if (cancelSpeech) {
+        stopSpeech();
+        // A cancelled turn is never spoken: the diagnosis still lands in the
+        // chat, but it must not yank the overlay back open to say it.
+        spokenQuestion.current = false;
+      }
       setClosing(true);
       window.setTimeout(() => {
         setVoice(false);
@@ -92,7 +116,8 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
     spoken.current = answer;
     if (!spokenQuestion.current) return;
     spokenQuestion.current = false;
-    void say([spokenSummary(answer)], true);
+    const speech = spokenSummary(answer);
+    if (speech) void say([speech], true, answer.language_code);
     closeVoice();
   }, [answer, say, closeVoice]);
 
@@ -105,7 +130,7 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
     const el = scrollRef.current;
     if (!el || !follow.current) return;
     el.scrollTop = el.scrollHeight;
-  }, [shown, streaming, status, busy]);
+  }, [shown, streaming, status, busy, asked, history.length]);
 
   // Our own scrolls always land at the bottom, so anything short of the bottom
   // can only be the reader — no need to guess at wheel/touch intent.
@@ -120,11 +145,11 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
     spokenQuestion.current = false;
     stopSpeech();
     follow.current = true;
-    ask(text);
+    askThreaded(text);
     setInput("");
   };
 
-  const empty = !answer && !status && !error && !busy;
+  const empty = history.length === 0 && !answer && !status && !error && !busy;
   const dictating = !voice && mic.status !== "idle";
   const canSend = input.trim().length > 0;
 
@@ -237,10 +262,18 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
             className="assistant-rise min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-8"
           >
             <div className={`${COLUMN} space-y-5`}>
+              {history.map((turn, i) => (
+                <div key={i} className="space-y-5">
+                  <QuestionLine text={turn.question} />
+                  <ChatMessage answer={turn.answer} />
+                </div>
+              ))}
+              {asked && <QuestionLine text={asked} />}
               {/* Only visible once the voice overlay has handed the screen back. */}
               {blocked && (
                 <p className="text-[12.5px] text-[#ff9a9a]">
-                  The browser blocked audio playback. Check autoplay and media permissions for this site.
+                  Speech could not be played. Check autoplay and media permissions for this site and
+                  your network connection.
                 </p>
               )}
               {playing && (
@@ -295,5 +328,17 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
         />
       )}
     </section>
+  );
+}
+
+// The reader's own question as a quiet right-aligned pill: the thread needs a
+// marker for where each answer begins, but the answer is the content.
+function QuestionLine({ text }: { text: string }) {
+  return (
+    <p className="flex justify-end">
+      <span className="max-w-[85%] rounded-full border border-white/10 bg-white/[0.06] px-3.5 py-1.5 text-[13px] text-white/60">
+        {text}
+      </span>
+    </p>
   );
 }

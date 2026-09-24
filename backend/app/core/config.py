@@ -1,8 +1,11 @@
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import List, Union
 from pydantic import model_validator, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.core.language import tts_language
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
@@ -37,9 +40,12 @@ class Settings(BaseSettings):
 
     # Sarvam speech-to-text (realtime streaming WebSocket)
     SARVAM_API_KEY: str = ""
-    SARVAM_STT_LANGUAGE: str = "en-IN"
+    # "auto" detects the spoken language per utterance; pin a code like "hi-IN"
+    # only to force a single language.
+    SARVAM_STT_LANGUAGE: str = "auto"
     # Sarvam text-to-speech (Bulbul). Kept separate from the STT language: the
-    # recogniser accepts "auto" but the synthesiser needs a concrete code.
+    # synthesiser needs a concrete code, so this is only the fallback for text
+    # carrying no language of its own — each answer brings its language_code.
     SARVAM_TTS_LANGUAGE: str = "en-IN"
     SARVAM_TTS_SPEAKER: str = "shubh"
     
@@ -63,6 +69,33 @@ class Settings(BaseSettings):
         if tier not in ("standard", "flex", "priority"):
             raise ValueError(f"GEMINI_SERVICE_TIER must be standard, flex, or priority (got {v!r})")
         return tier
+
+    @field_validator("SARVAM_STT_LANGUAGE", mode="before")
+    @classmethod
+    def normalize_stt_language(cls, v: str) -> str:
+        v = str(v or "auto").strip()
+        if v.lower() == "auto":
+            return "auto"
+        base = v.lower().replace("_", "-")
+        if base == "od-in":
+            return "or-IN"  # the synthesiser's Odia spelling; STT wants or-IN
+        if not re.fullmatch(r"[a-z]{2,3}(?:-[a-z0-9]{2,8})?", base):
+            raise ValueError(f"SARVAM_STT_LANGUAGE must be 'auto' or a BCP-47 code (got {v!r})")
+        return f"{base.split('-')[0]}-IN"
+
+    @field_validator("SARVAM_TTS_LANGUAGE", mode="before")
+    @classmethod
+    def normalize_tts_language(cls, v: str) -> str:
+        lang = tts_language(str(v or "").strip() or "en-IN")
+        if not lang:
+            raise ValueError(f"SARVAM_TTS_LANGUAGE must be a Bulbul language code (got {v!r})")
+        return lang
+
+    @field_validator("SARVAM_TTS_SPEAKER", mode="before")
+    @classmethod
+    def normalize_tts_speaker(cls, v: str) -> str:
+        # Bulbul speaker names are case-sensitive and lowercase.
+        return str(v or "shubh").strip().lower()
 
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),

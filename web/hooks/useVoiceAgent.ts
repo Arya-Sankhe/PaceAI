@@ -3,20 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { OrbState } from "thinking-orbs";
 import type { DictationStatus } from "@/hooks/useDictation";
-import { ACK_LINE, ERROR_LINE, ORB_FOR_STEP, STEP_SPEECH } from "@/lib/voice";
+import { ORB_FOR_STEP, chromeFor, ttsLanguage } from "@/lib/voice";
 
 export type VoicePhase = "connecting" | "listening" | "thinking";
 
 type Args = {
   active: boolean;
-  ask: (text: string) => void;
+  ask: (text: string, language?: string) => void;
   busy: boolean;
   step: string;
   error: string | null;
   micStatus: DictationStatus;
   micStart: () => Promise<void> | void;
   micStop: (opts?: { discard?: boolean }) => void;
-  say: (texts: string[], preempt?: boolean) => Promise<void>;
+  say: (texts: string[], preempt?: boolean, language?: string) => Promise<void>;
 };
 
 // The listening half of the voice agent. It owns the mic turn and the spoken
@@ -49,9 +49,14 @@ export function useVoiceAgent({
     accepting.current = acceptingNow;
   }, [acceptingNow]);
 
+  // The turn's language, taken from the transcript the recogniser tagged, so
+  // every filler — spoken before any answer exists — is in the user's language.
+  const turnLang = useRef(ttsLanguage());
+
   useEffect(() => {
     if (!active) return;
     live.current = true;
+    turnLang.current = ttsLanguage();
     setTranscript("");
     void micStart();
     return () => {
@@ -71,7 +76,8 @@ export function useVoiceAgent({
     }
     if (step === lastStep.current) return;
     lastStep.current = step;
-    void say([STEP_SPEECH[step] ?? "Still working on that."]);
+    const chrome = chromeFor(turnLang.current);
+    void say([chrome.steps[step] ?? chrome.working], false, turnLang.current);
   }, [active, step, say]);
 
   // A failed diagnosis is not an answer: say so and listen again.
@@ -79,18 +85,19 @@ export function useVoiceAgent({
   useEffect(() => {
     if (!active || !error || failed.current === error) return;
     failed.current = error;
-    void say([ERROR_LINE], true).then(() => {
+    void say([chromeFor(turnLang.current).error], true, turnLang.current).then(() => {
       if (live.current) void micStart();
     });
   }, [active, error, say, micStart]);
 
   const handleUtterance = useCallback(
-    (text: string) => {
+    (text: string, language?: string) => {
       if (!accepting.current || !text.trim()) return;
+      turnLang.current = ttsLanguage(language);
       setTranscript(text);
       micStop();
-      void say([ACK_LINE], true);
-      ask(text);
+      void say([chromeFor(turnLang.current).ack], true, turnLang.current);
+      ask(text, language);
     },
     [ask, micStop, say],
   );

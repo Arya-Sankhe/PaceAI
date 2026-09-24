@@ -7,7 +7,8 @@ import { demoMode } from "@/lib/api";
 export interface Citation { document_id: string; revision: string; page_number: number }
 export interface Diagnosis {
   observed_facts: string[]; hypotheses: { cause: string; supports: string; conflicts: string }[];
-  next_checks: string[]; safety_warning: string; freshness_warning: string; citations: Citation[];
+  next_checks: string[]; safety_warning: string; freshness_warning: string;
+  speech_summary: string; language_code: string; citations: Citation[];
 }
 
 // Minimal SSE-over-POST reader. Only the copilot streams; everything else is plain fetch.
@@ -20,14 +21,14 @@ export function useCopilotStream(machineKey: string) {
   const [error, setError] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
 
-  async function ask(message: string) {
+  async function ask(message: string, language?: string) {
     setBusy(true); setStatus(""); setStep(""); setCitations([]); setAnswer(null); setError(null);
     try {
       const { data } = demoMode ? { data: { session: null } } : await supabase().auth.getSession();
       const res = await fetch(`/api/v1/machines/${machineKey}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {}) },
-        body: JSON.stringify({ message, ...(conversationId ? { conversation_id: conversationId } : {}) }),
+        body: JSON.stringify({ message, ...(conversationId ? { conversation_id: conversationId } : {}), ...(language ? { language } : {}) }),
       });
       if (!res.ok || !res.body) throw new Error("chat_failed");
       const reader = res.body.getReader();

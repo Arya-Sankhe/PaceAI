@@ -7,17 +7,19 @@ import anyio
 
 from app.core import gemini
 from app.core.config import settings
+from app.core.language import tts_language
 from app.copilot import prompt
 
 REQUIRED = ("observed_facts", "hypotheses", "next_checks", "safety_warning",
-            "freshness_warning", "citations")
+            "freshness_warning", "speech_summary", "language_code", "citations")
 
 
 class DiagnosticError(RuntimeError):
     pass
 
 
-def validate(answer: dict, allowed_ids: set[str], allowed_pages: list[dict] | None = None) -> dict:
+def validate(answer: dict, allowed_ids: set[str], allowed_pages: list[dict] | None = None,
+             question_language: str = "") -> dict:
     """Pure: drops citations outside the retrieved set, fills missing keys. Tested."""
     if not isinstance(answer, dict):
         raise DiagnosticError("bad_model_output")
@@ -34,6 +36,21 @@ def validate(answer: dict, allowed_ids: set[str], allowed_pages: list[dict] | No
     ][:10]
     clean["safety_warning"] = str(clean["safety_warning"] or "")[:1000]
     clean["freshness_warning"] = str(clean["freshness_warning"] or "")[:1000]
+    clean["speech_summary"] = str(clean["speech_summary"] or "")[:1500]
+    # A missing code keeps the old en-IN default; a code Bulbul cannot speak
+    # (see app/core/language.py) means no spoken answer at all — silence beats a
+    # wrong-voice reading — so the summary is withheld from the client.
+    raw = str(clean["language_code"] or "").strip()
+    if raw:
+        lang = tts_language(raw)
+    else:
+        # The model omitted the code: fall back to the question's language with
+        # the same policy — a question in a language Bulbul cannot voice stays
+        # text rather than an English-voice reading.
+        lang = tts_language(question_language) if question_language else "en-IN"
+    clean["language_code"] = lang
+    if not lang:
+        clean["speech_summary"] = ""
     clean["next_checks"] = [str(x)[:500] for x in (clean["next_checks"] or [])][:20]
     
     allowed_doc_pages = set()

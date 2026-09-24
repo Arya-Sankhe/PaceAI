@@ -70,7 +70,7 @@ async def chat(key: str, body: ChatIn, request_user=Depends(deps.require_user)):
             pages, images = await retrieval.retrieve(conn, body.message)
         user_prompt = prompt.build_user(
             body.message, key, fresh, age, values, events, pages, "dummy",
-            state.get("info") or {}, state.get("titles") or {},
+            state.get("info") or {}, state.get("titles") or {}, language=body.language,
         )
 
         yield _sse("status", "generating")
@@ -78,7 +78,8 @@ async def chat(key: str, body: ChatIn, request_user=Depends(deps.require_user)):
         try:
             # Validate the complete structured response before exposing any model output.
             raw, _meta = await generator.generate(user_prompt, [png for _, png in images])
-            answer = generator.validate(raw, {str(p["id"]) for p in pages}, pages)
+            answer = generator.validate(raw, {str(p["id"]) for p in pages}, pages,
+                                       question_language=body.language)
         except Exception:  # noqa: BLE001 — invalid JSON, empty evidence, or provider fault
             yield _sse("error", "diagnostic_unavailable")
             return

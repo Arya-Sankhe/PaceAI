@@ -19,7 +19,7 @@ export function useSpeech() {
   const generation = useRef(0);
   const pending = useRef(0);
 
-  const say = useCallback((texts: string[], preempt = false) => {
+  const say = useCallback((texts: string[], preempt = false, language?: string) => {
     if (preempt) {
       generation.current += 1;
       controller.current?.abort();
@@ -37,6 +37,7 @@ export function useSpeech() {
           signal: next.signal,
           onCaption: setCaption,
           onFailure: () => setBlocked(true),
+          language,
         });
       })
       .catch(() => {})

@@ -24,12 +24,17 @@ from pydantic import BaseModel, Field
 
 from app.api import deps
 from app.core.config import settings
+from app.core.language import tts_language
 
 router = APIRouter()
 
 SARVAM_WS_URL = "wss://api.sarvam.ai/speech-to-text-realtime/ws"
 SARVAM_MODEL = "saaras:v3-realtime"
 SARVAM_STREAM_TYPE = "balanced"
+# transcribe keeps every transcript in the language it was spoken in — the
+# translate mode would force English. language_code (settings, "auto" by
+# default) detects that language per utterance and echoes it on the events.
+SARVAM_MODE = "transcribe"
 SAMPLE_RATE = 16000
 # Terminology hint applied to the final transcript. Without it the recogniser
 # mangles machine jargon (SSR, setpoint, tag names) into everyday words.
@@ -51,6 +56,7 @@ def _upstream_url() -> str:
         {
             "language_code": settings.SARVAM_STT_LANGUAGE,
             "model": SARVAM_MODEL,
+            "mode": SARVAM_MODE,
             "stream_type": SARVAM_STREAM_TYPE,
             "encoding": "linear16",
             "sample_rate": SAMPLE_RATE,
@@ -133,17 +139,26 @@ async def _pump_audio(client: WebSocket, upstream) -> None:
 
 
 async def _pump_events(client: WebSocket, upstream) -> None:
+    # Sarvam only tags events with `language` when it detects the language
+    # itself, so a pinned one is echoed here to keep the client's speech in it.
+    pinned = "" if settings.SARVAM_STT_LANGUAGE == "auto" else settings.SARVAM_STT_LANGUAGE
     async for message in upstream:
         if not isinstance(message, str):
             continue
-        await client.send_text(message)
-        # session.end is terminal: Sarvam finalises the last utterance before
-        # sending it, so waiting past this point only delays the close.
         try:
-            if json.loads(message).get("event") == "session.end":
-                return
+            event = json.loads(message)
         except ValueError:
-            pass
+            event = None
+        if isinstance(event, dict):
+            if pinned and str(event.get("event", "")).startswith("transcript") and "language" not in event:
+                event["language"] = pinned
+                message = json.dumps(event)
+            # session.end is terminal: Sarvam finalises the last utterance before
+            # sending it, so waiting past this point only delays the close.
+            if event.get("event") == "session.end":
+                await client.send_text(message)
+                return
+        await client.send_text(message)
 
 
 SARVAM_TTS_URL = "https://api.sarvam.ai/text-to-speech"
@@ -154,6 +169,9 @@ TTS_MAX_CHARS = 2500
 
 class SpeakIn(BaseModel):
     text: str = Field(min_length=1, max_length=TTS_MAX_CHARS)
+    # BCP-47 code of the text being spoken (e.g. "hi-IN"); falls back to the
+    # configured voice language when the caller has none.
+    language_code: str | None = Field(default=None, max_length=16)
 
 
 @router.post("/speech/speak")
@@ -165,6 +183,12 @@ async def speak(body: SpeakIn, _user=Depends(deps.require_user)):
     """
     if not settings.SARVAM_API_KEY:
         raise HTTPException(503, "speech_not_configured")
+    # An explicitly unspeakable code is a caller error — reject rather than
+    # silently read the text in the wrong voice. See app/core/language.py.
+    requested = tts_language(body.language_code) if body.language_code else ""
+    if body.language_code and not requested:
+        raise HTTPException(422, "unsupported_language")
+    language = requested or tts_language(settings.SARVAM_TTS_LANGUAGE) or "en-IN"
     try:
         async with httpx.AsyncClient(timeout=30) as http:
             upstream = await http.post(
@@ -172,7 +196,7 @@ async def speak(body: SpeakIn, _user=Depends(deps.require_user)):
                 headers={"api-subscription-key": settings.SARVAM_API_KEY},
                 json={
                     "text": body.text,
-                    "language_code": settings.SARVAM_TTS_LANGUAGE,
+                    "language_code": language,
                     "speaker": settings.SARVAM_TTS_SPEAKER,
                     "model": SARVAM_TTS_MODEL,
                 },
