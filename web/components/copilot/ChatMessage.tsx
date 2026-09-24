@@ -3,12 +3,13 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Diagnosis } from "@/hooks/useCopilotStream";
+import { AnswerVisual } from "./AnswerVisual";
 import { CitationPill } from "./CitationPill";
 import { SafetyBanner } from "./SafetyBanner";
 import { FreshnessWarning } from "./FreshnessWarning";
 
 // ponytail: react-markdown WITHOUT rehype-raw — raw HTML from the model is rendered as text, not DOM.
-export function ChatMessage({ answer }: { answer: Diagnosis }) {
+export function ChatMessage({ answer, machineKey }: { answer: Diagnosis; machineKey: string }) {
   return (
     <div className="space-y-7 text-[14px] leading-[1.7] text-white/85">
       <SafetyBanner text={answer.safety_warning} />
@@ -75,6 +76,8 @@ export function ChatMessage({ answer }: { answer: Diagnosis }) {
           </ul>
         </Section>
       )}
+
+      {answer.visual && <AnswerVisual visual={answer.visual} machineKey={machineKey} />}
 
       {answer.citations.length > 0 && (
         <div className="flex flex-wrap gap-1.5 border-t border-white/[0.07] pt-5">

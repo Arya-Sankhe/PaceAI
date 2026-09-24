@@ -44,8 +44,16 @@ function visibleUpTo(a: Diagnosis, budget: number): Diagnosis {
   }
   const next_checks = a.next_checks.map(take).filter(Boolean);
 
-  // Sources land with the finished answer, never ahead of the text they cite.
-  return { ...a, observed_facts, hypotheses, next_checks, citations: left <= 0 ? a.citations : [] };
+  // Sources and the chart land with the finished answer, never ahead of the text
+  // they support.
+  return {
+    ...a,
+    observed_facts,
+    hypotheses,
+    next_checks,
+    citations: left <= 0 ? a.citations : [],
+    visual: left <= 0 ? a.visual : null,
+  };
 }
 
 export function useProgressiveAnswer(answer: Diagnosis | null) {

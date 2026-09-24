@@ -11,7 +11,13 @@ from app.core.language import tts_language
 from app.copilot import prompt
 
 REQUIRED = ("observed_facts", "hypotheses", "next_checks", "safety_warning",
-            "freshness_warning", "speech_summary", "language_code", "citations")
+            "freshness_warning", "speech_summary", "language_code", "citations", "visual")
+
+# The model only chooses which chart helps; the values are fetched client-side
+# from the machine endpoints, so nothing here can be fabricated.
+VISUAL_KINDS = ("temp_trend", "zone_status", "shift_summary", "drive_speed")
+VISUAL_WINDOWS = ("1h", "8h", "24h", "7d")
+VISUAL_TRENDS = ("temp_trend", "drive_speed")
 
 
 class DiagnosticError(RuntimeError):
@@ -52,7 +58,17 @@ def validate(answer: dict, allowed_ids: set[str], allowed_pages: list[dict] | No
     if not lang:
         clean["speech_summary"] = ""
     clean["next_checks"] = [str(x)[:500] for x in (clean["next_checks"] or [])][:20]
-    
+
+    # ponytail: an unsupported visual is dropped, never repaired — the client
+    # renders only kinds it has a component for.
+    visual = clean["visual"]
+    kind = str(visual.get("kind", "")).strip() if isinstance(visual, dict) else ""
+    if kind in VISUAL_KINDS:
+        window = str(visual.get("window", "")).strip()
+        clean["visual"] = {"kind": kind, **({"window": window} if kind in VISUAL_TRENDS and window in VISUAL_WINDOWS else {})}
+    else:
+        clean["visual"] = None
+
     allowed_doc_pages = set()
     page_by_id = {}
     page_by_doc_page = {}

@@ -54,6 +54,20 @@ def test_citation_doc_page_allowlist():
     assert ans["citations"][0]["page_number"] == 15
 
 
+def test_visual_allowlist_drops_unknown_kinds():
+    base = {"observed_facts": ["x"], "hypotheses": [], "next_checks": [],
+            "safety_warning": "", "freshness_warning": "", "citations": []}
+    kept = validate({**base, "visual": {"kind": "temp_trend", "window": "1h"}}, allowed_ids=set())
+    assert kept["visual"] == {"kind": "temp_trend", "window": "1h"}
+    # window is only meaningful for the trend kinds
+    snap = validate({**base, "visual": {"kind": "zone_status", "window": "1h"}}, allowed_ids=set())
+    assert snap["visual"] == {"kind": "zone_status"}
+    # an invented kind, a junk window, and a missing field all become null
+    assert validate({**base, "visual": {"kind": "drop table", "window": "99y"}}, allowed_ids=set())["visual"] is None
+    assert validate({**base, "visual": {"kind": "drive_speed", "window": "99y"}}, allowed_ids=set())["visual"] == {"kind": "drive_speed"}
+    assert validate(base, allowed_ids=set())["visual"] is None
+
+
 def test_prompt_marks_manuals_untrusted_and_covers_evidence():
     pages = [{"id": "p1", "document_id": "d1", "revision": "r1", "page_number": 42,
               "page_type": "electrical_schematic", "subsystem": "Heater Zones",
@@ -115,6 +129,7 @@ if __name__ == "__main__":
     test_rrf_prefers_multi_lane_consensus_with_exact_boost()
     test_citation_allowlist_strips_fabrications()
     test_citation_doc_page_allowlist()
+    test_visual_allowlist_drops_unknown_kinds()
     test_prompt_marks_manuals_untrusted_and_covers_evidence()
     test_generate_falls_back_to_standard_after_flex_shed()
     test_generate_fails_closed_when_both_tiers_fail()

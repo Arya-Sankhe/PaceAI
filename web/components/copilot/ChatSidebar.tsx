@@ -33,7 +33,7 @@ export function ChatSidebar({ machineKey }: { machineKey: string }) {
           </div>
         )}
         {status && <p className="text-sm text-zinc-400">{status}</p>}
-        {answer && <ChatMessage answer={answer} />}
+        {answer && <ChatMessage answer={answer} machineKey={machineKey} />}
         {error && <p className="text-sm text-red-300">{error === "diagnostic_unavailable" ? "Diagnosis unavailable — telemetry and manuals still work. Try again." : error}</p>}
       </div>
       <div className="space-y-2 border-t border-zinc-800 p-3">

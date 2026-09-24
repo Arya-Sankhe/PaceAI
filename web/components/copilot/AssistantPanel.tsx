@@ -265,7 +265,7 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
               {history.map((turn, i) => (
                 <div key={i} className="space-y-5">
                   <QuestionLine text={turn.question} />
-                  <ChatMessage answer={turn.answer} />
+                  <ChatMessage answer={turn.answer} machineKey={machineKey} />
                 </div>
               ))}
               {asked && <QuestionLine text={asked} />}
@@ -296,7 +296,7 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
                   {status || "Thinking…"}
                 </p>
               )}
-              {shown && <ChatMessage answer={shown} />}
+              {shown && <ChatMessage answer={shown} machineKey={machineKey} />}
               {error && (
                 <p className="rounded-2xl border border-red-400/25 bg-red-400/10 px-4 py-3 text-[13.5px] text-red-100">
                   {error === "diagnostic_unavailable"

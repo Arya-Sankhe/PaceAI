@@ -5,10 +5,15 @@ import { supabase } from "@/lib/supabase";
 import { demoMode } from "@/lib/api";
 
 export interface Citation { document_id: string; revision: string; page_number: number }
+// The answer only names which chart helps; AnswerVisual fetches its data.
+export interface Visual {
+  kind: "temp_trend" | "zone_status" | "shift_summary" | "drive_speed";
+  window?: "1h" | "8h" | "24h" | "7d";
+}
 export interface Diagnosis {
   observed_facts: string[]; hypotheses: { cause: string; supports: string; conflicts: string }[];
   next_checks: string[]; safety_warning: string; freshness_warning: string;
-  speech_summary: string; language_code: string; citations: Citation[];
+  speech_summary: string; language_code: string; citations: Citation[]; visual?: Visual | null;
 }
 
 // Minimal SSE-over-POST reader. Only the copilot streams; everything else is plain fetch.

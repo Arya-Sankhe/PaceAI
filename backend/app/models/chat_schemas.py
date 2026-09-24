@@ -32,6 +32,13 @@ class Hypothesis(BaseModel):
     conflicts: str = ""
 
 
+class Visual(BaseModel):
+    """Which chart to draw under the answer. The values are fetched client-side."""
+
+    kind: Literal["temp_trend", "zone_status", "shift_summary", "drive_speed"]
+    window: Literal["1h", "8h", "24h", "7d"] | None = None
+
+
 class DiagnosticOut(BaseModel):
     observed_facts: List[str] = Field(default_factory=list)
     hypotheses: List[Hypothesis] = Field(default_factory=list)
@@ -41,3 +48,4 @@ class DiagnosticOut(BaseModel):
     speech_summary: str = ""
     language_code: str = "en-IN"
     citations: List[Citation] = Field(default_factory=list)
+    visual: Visual | None = None
