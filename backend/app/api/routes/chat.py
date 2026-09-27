@@ -61,6 +61,8 @@ async def chat(key: str, body: ChatIn, request_user=Depends(deps.require_user)):
         now = datetime.now(timezone.utc)
         overall_quality = "bad" if "bad" in state["quality"].values() else "good"
         fresh, age = freshness(now, state["source_ts"], overall_quality)
+        if not state.get("collector_connected", True):
+            fresh = "disconnected"
         values = state["values"]
         events = [{**r, "ts": r["ts"].isoformat()} for r in ev_rows]
 
@@ -69,7 +71,7 @@ async def chat(key: str, body: ChatIn, request_user=Depends(deps.require_user)):
         async with pool.acquire() as conn:
             pages, images = await retrieval.retrieve(conn, body.message)
         user_prompt = prompt.build_user(
-            body.message, key, fresh, age, values, events, pages, "dummy",
+            body.message, key, fresh, age, values, events, pages, source.mode,
             state.get("info") or {}, state.get("titles") or {}, language=body.language,
         )
 
@@ -86,7 +88,7 @@ async def chat(key: str, body: ChatIn, request_user=Depends(deps.require_user)):
         for citation in answer["citations"]:
             yield _sse("citation", citation)
         evidence = {
-            "machine_key": key, "source_ts": state["source_ts"].isoformat(),
+            "machine_key": key, "source_ts": state["source_ts"].isoformat() if state["source_ts"] else None,
             "freshness": fresh, "event_ids": [r["id"] for r in ev_rows],
             "page_ids": [str(p["id"]) for p in pages],
             "scores": [p.get("score") for p in pages],

@@ -25,7 +25,7 @@ def test_freshness_states():
 
 
 def test_machine_source_fault_is_visible():
-    state = asyncio.run(source.snapshot("orion_1"))
+    state = asyncio.run(source.dummy.snapshot("orion_1"))
     assert state["values"]["fault_code"] == 32014.0
     assert state["values"]["hor_front_output"] == 100.0
 

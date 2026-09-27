@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useMemo } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import {
   Activity,
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   Flame,
   Package,
@@ -21,14 +22,17 @@ import { TempQuadrants } from "@/components/cockpit/TempQuadrants";
 import { LiveTrendCard } from "@/components/cockpit/LiveTrendCard";
 import { MachineInfoCard, MachineStatusCard } from "@/components/cockpit/MachinePanels";
 import { OeePanel } from "@/components/cockpit/OeePanel";
+import { HealthCard, OeeCard, SpeedCard, machineIssues, machineState } from "@/components/cockpit/LinePanels";
 import { HistoryView } from "@/components/cockpit/HistoryView";
 import { AssistantPanel } from "@/components/copilot/AssistantPanel";
+import { DashboardStudio } from "@/components/dashboard/DashboardStudio";
 import { useLiveSeries } from "@/components/cockpit/useLiveSeries";
 import { VIEWS, type ViewId } from "@/components/layout/AppSidebar";
 import { useMachineLatest } from "@/hooks/useMachineLatest";
-import { demoMode } from "@/lib/api";
 
-const VALID: ViewId[] = ["overview", "heaters", "drives", "production", "system", "history", "assistant"];
+const ISSUE_PREVIEW = 3;
+
+const VALID: ViewId[] = ["overview", "heaters", "drives", "production", "system", "history", "dashboard", "assistant"];
 
 export default function CockpitPage() {
   return (
@@ -63,7 +67,19 @@ function CockpitInner() {
     return err !== 0 && on(v, `${a.prefix}_error_active`) === true;
   }).map((a) => ({ label: `${a.prefix.toUpperCase()} · ${a.label}`, detail: `Error ${Math.round(num(v, `${a.prefix}_error_id`) ?? 0)}` }));
   const faultCode = num(v, "fault_code");
-  const attention = heaterIssues.length + driveFaults.length + (faultCode ? 1 : 0);
+  // E-stop / machine fault / alarms (drive faults and heater zones are listed above).
+  const machineAlerts = machineIssues(v, info).filter((i) => !i.title.endsWith("drive fault") && !i.title.endsWith("out of tolerance"));
+  const runState = machineState(v, machineIssues(v, info));
+  const issues = [
+    ...machineAlerts.map((i) => ({ title: i.title, detail: i.detail, tab: "system" })),
+    ...driveFaults.map((i) => ({ title: i.label, detail: i.detail, tab: "drives" })),
+    ...(faultCode ? [{ title: `Fault ${Math.round(faultCode)}`, detail: "See production for context", tab: "production" }] : []),
+    ...heaterIssues.map((i) => ({ title: i.label, detail: i.detail, tab: "heaters" })),
+  ];
+  const attention = issues.length;
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? issues : issues.slice(0, ISSUE_PREVIEW);
+  const hidden = issues.length - shown.length;
   const hasAttention = attention > 0 || state?.collector_connected === false;
 
   const inTol = HEATERS.filter((h) => on(v, `${h.prefix}_tol`)).length;
@@ -133,20 +149,9 @@ function CockpitInner() {
                 <span className="ml-auto text-[12px] tabular text-white/45">{attention} open</span>
               </div>
               <ul className="space-y-0.5">
-                {heaterIssues.slice(0, 2).map((i) => (
-                  <IssueCheck key={i.label} title={i.label} detail={i.detail} href={`/machines/${key}?tab=heaters`} tone="bad" />
+                {shown.map((i) => (
+                  <IssueCheck key={i.title} title={i.title} detail={i.detail} href={`/machines/${key}?tab=${i.tab}`} tone="bad" />
                 ))}
-                {driveFaults.slice(0, 1).map((i) => (
-                  <IssueCheck key={i.label} title={i.label} detail={i.detail} href={`/machines/${key}?tab=drives`} tone="bad" />
-                ))}
-                {faultCode ? (
-                  <IssueCheck
-                    title={`Fault ${Math.round(faultCode)}`}
-                    detail="See production for context"
-                    href={`/machines/${key}?tab=production`}
-                    tone="bad"
-                  />
-                ) : null}
                 {state?.collector_connected === false && (
                   <li className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-[13.5px]">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ff5d5d]/15 text-[#ff8a8a]">
@@ -159,6 +164,17 @@ function CockpitInner() {
                   </li>
                 )}
               </ul>
+              {issues.length > ISSUE_PREVIEW && (
+                <button
+                  type="button"
+                  aria-expanded={showAll}
+                  onClick={() => setShowAll((x) => !x)}
+                  className="mx-1 mb-1 mt-0.5 flex w-[calc(100%-0.5rem)] items-center justify-center gap-1.5 rounded-2xl py-2 text-[12.5px] font-medium text-white/60 transition-colors hover:bg-white/[0.05] hover:text-white"
+                >
+                  {showAll ? "Show less" : `Show all ${issues.length} · ${hidden} more`}
+                  <ChevronDown size={14} aria-hidden="true" className={`transition-transform ${showAll ? "rotate-180" : ""}`} />
+                </button>
+              )}
             </section>
           ) : (
             <div
@@ -166,12 +182,21 @@ function CockpitInner() {
               style={{ borderColor: "rgba(52,211,153,0.25)" }}
             >
               <CheckCircle2 size={16} aria-hidden="true" className="shrink-0 text-emerald-300" />
-              <span className="text-[13.5px] font-semibold text-white">Running normally</span>
+              <span className="text-[13.5px] font-semibold text-white">
+                {runState.label === "Running" || runState.label === "Unknown" ? "Running normally" : `No faults · ${runState.label.toLowerCase()}`}
+              </span>
               <span className="ml-auto text-[12.5px] tabular text-white/45">
                 {inTol}/4 zones · {healthy}/6 axes
               </span>
             </div>
           )}
+
+          {/* line at a glance — speed vs set, OEE, alarms/faults */}
+          <div className="grid gap-3 md:grid-cols-3">
+            <SpeedCard values={v} href={`/machines/${key}?tab=production`} />
+            <OeeCard values={v} href={`/machines/${key}?tab=production`} />
+            <HealthCard values={v} info={info} href={`/machines/${key}?tab=system`} connected={state?.collector_connected !== false && !!state} />
+          </div>
 
           {/* live heater zones — four quadrants replace the old combined chart */}
           <TempQuadrants machineKey={key} values={v} live={live} />
@@ -266,7 +291,7 @@ function CockpitInner() {
           </section>
 
           <p className="px-1 text-center text-[12px] text-white/40">
-            {demoMode ? "Demo data · simulated snapshot every second." : "Live controller telemetry."}
+            {state?.source === "plc" ? "Live controller telemetry over OPC UA (read-only)." : "Demo data · simulated snapshot every second."}
             {info.date_time ? ` · PLC ${info.date_time}` : ""}
           </p>
         </div>
@@ -334,6 +359,7 @@ function CockpitInner() {
         </div>
       )}
 
+      {tab === "dashboard" && <DashboardStudio machineKey={key} />}
       {tab === "assistant" && <AssistantPanel machineKey={key} />}
     </div>
   );

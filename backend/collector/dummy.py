@@ -15,9 +15,10 @@ import random
 import time
 from datetime import datetime, timezone
 
+from collector.tolerance import apply_tolerance
+
 TEMP_NOISE = 0.15
 RPM_NOISE = 0.8
-TOL_BAND = 2.0
 PPM = 40.0
 RPM_RATIO = {"bx": 0.85, "cs": 0.92, "ff": 1.0, "pk": 0.15, "uw": 0.45, "vs": 0.78}
 ZONES = ["hor_front", "hor_rear", "vert1", "vert2"]
@@ -129,7 +130,6 @@ def _tick(st: dict, t: float, fault: str, now: str) -> tuple[dict, dict, dict]:
             v[f"{z}_temp"] = st[f"{z}_set"] + wobble(0, 1.5, 47) + random.uniform(-TEMP_NOISE, TEMP_NOISE)
             v[f"{z}_output"] = max(0.0, min(100.0, (st[f"{z}_set"] - v[f"{z}_temp"]) * 2.5 + 35))
         v[f"{z}_set"] = st[f"{z}_set"]
-        v[f"{z}_tol"] = 1.0 if abs(st[f"{z}_set"] - v[f"{z}_temp"]) < TOL_BAND else 0.0
         v[f"{z}_heater_on"] = 1.0 if v[f"{z}_output"] > 1.0 else 0.0
 
     for ax in AXES:
@@ -151,6 +151,19 @@ def _tick(st: dict, t: float, fault: str, now: str) -> tuple[dict, dict, dict]:
     v["count_good"] = float(st["good"])
     v["count_bad"] = float(st["bad"])
     v["fault_code"] = 32014.0 if fault else 0.0
+    v["set_speed"] = PPM
+    v["max_speed"] = 180.0
+    v["actual_speed"] = max(0.0, PPM - 1.5 + wobble(0, 1.0, 29) + random.uniform(-0.4, 0.4))
+    total = st["good"] + st["bad"]
+    v["availability"] = 91.4
+    v["performance"] = min(100.0, 100.0 * v["actual_speed"] / PPM)
+    v["quality"] = 100.0 * st["good"] / total if total else 100.0
+    v["oee"] = v["availability"] * v["performance"] * v["quality"] / 10000.0
+    v["alarm_active"] = 1.0 if fault else 0.0
+    v["fault_active"] = 1.0 if fault else 0.0
+    v["estop"] = 0.0
+    v["ready_to_start"] = 1.0
+    v["producing"] = 1.0
     v["alarm_count"] = 1.0 if fault else 0.0
     v["web_roll_center"] = st["web_roll_center"] + wobble(0, 0.4, 83)
 
@@ -187,4 +200,5 @@ def _tick(st: dict, t: float, fault: str, now: str) -> tuple[dict, dict, dict]:
     for ax in AXES:
         info[f"{ax}_error_text"] = "" if not fault else st["error_text"][ax]
     titles = {"planned_dt": list(st["pdt_titles"]), "unplanned_dt": list(st["udt_titles"])}
+    apply_tolerance(v)  # HMI default band ±10 °C, same rule as the live PLC
     return v, info, titles

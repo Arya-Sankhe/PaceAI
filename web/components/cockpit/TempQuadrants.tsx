@@ -6,7 +6,9 @@ import { HEATERS, num, on } from "./meta";
 import type { LiveSample } from "./useLiveSeries";
 
 const SHORT = ["Front", "Rear", "V·1", "V·2"];
-const TOL = 2;
+// The tolerance band is the one set on the HMI (±10 °C by default); the API
+// reports it per zone as *_tol_plus / *_tol_minus.
+const DEFAULT_TOL = 10;
 
 /** Four live heater quadrants. Each zone gets its own window: current temp,
  *  setpoint, a live sparkline with tolerance band, deviation and output.
@@ -44,6 +46,10 @@ export function TempQuadrants({
             set={num(values, `${h.prefix}_set`)}
             out={num(values, `${h.prefix}_output`)}
             intol={on(values, `${h.prefix}_tol`)}
+            tol={{
+              plus: Math.abs(num(values, `${h.prefix}_tol_plus`) ?? DEFAULT_TOL),
+              minus: Math.abs(num(values, `${h.prefix}_tol_minus`) ?? DEFAULT_TOL),
+            }}
             series={live.map((s) => s.vals[k])}
             href={`/machines/${machineKey}?tab=heaters`}
           />
@@ -60,6 +66,7 @@ function ZoneCard({
   set,
   out,
   intol,
+  tol,
   series,
   href,
 }: {
@@ -69,12 +76,13 @@ function ZoneCard({
   set: number | undefined;
   out: number | undefined;
   intol: boolean | undefined;
+  tol: Tol;
   series: (number | undefined)[];
   href: string;
 }) {
   const bad = intol === false;
   const delta = temp != null && set != null ? temp - set : undefined;
-  const outside = delta != null && Math.abs(delta) > TOL;
+  const outside = delta != null && (delta > tol.plus || delta < -tol.minus);
 
   return (
     <Link
@@ -118,7 +126,7 @@ function ZoneCard({
       </div>
 
       <div className="mt-2">
-        <ZoneSpark data={series} set={set} faulted={bad} label={full} />
+        <ZoneSpark data={series} set={set} tol={tol} faulted={bad} label={full} />
       </div>
 
       <div className="mt-2.5 flex items-center justify-between border-t border-white/10 pt-2.5 text-[12px]">
@@ -135,7 +143,9 @@ function ZoneCard({
   );
 }
 
-function ZoneSpark({ data, set, faulted, label }: { data: (number | undefined)[]; set: number | undefined; faulted: boolean; label: string }) {
+type Tol = { plus: number; minus: number };
+
+function ZoneSpark({ data, set, tol, faulted, label }: { data: (number | undefined)[]; set: number | undefined; tol: Tol; faulted: boolean; label: string }) {
   const W = 260, H = 64, PAD = 5;
   const pts = data
     .map((v, i) => (v != null ? { i, v } : null))
@@ -156,8 +166,8 @@ function ZoneSpark({ data, set, faulted, label }: { data: (number | undefined)[]
   // Same absolute scale in every quadrant so zones stay comparable, with a
   // little extra room under the minimum so a cold zone lifts off the floor
   // instead of reading as a flat line.
-  const lo = set != null ? Math.min(set - 14, dMin - 8) : dMin - 8;
-  const hi = set != null ? Math.max(set + 10, dMax + 4) : dMax + 8;
+  const lo = set != null ? Math.min(set - tol.minus - 4, dMin - 8) : dMin - 8;
+  const hi = set != null ? Math.max(set + tol.plus + 2, dMax + 4) : dMax + 8;
   const X = (i: number) => PAD + (i / Math.max(n - 1, 1)) * (W - 2 * PAD);
   const Y = (v: number) => H - PAD - ((v - lo) / Math.max(hi - lo, 0.001)) * (H - 2 * PAD);
 
@@ -185,9 +195,9 @@ function ZoneSpark({ data, set, faulted, label }: { data: (number | undefined)[]
         <>
           <rect
             x={PAD}
-            y={Y(set + TOL)}
+            y={Y(set + tol.plus)}
             width={W - 2 * PAD}
-            height={Math.max(3, Y(set - TOL) - Y(set + TOL))}
+            height={Math.max(3, Y(set - tol.minus) - Y(set + tol.plus))}
             rx="3"
             fill="rgba(255,255,255,0.08)"
           />

@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     DEMO_MODE: bool = True
     MOCK_FAULT: str = "hor_front_temp"
     MOCK_FAULT_MACHINE: str = "orion_1"
+
+    # Machine data: "dummy" (generated) or "plc" (live OPC UA, read-only).
+    # Switchable at runtime from the app; this is only the value at boot.
+    MACHINE_SOURCE: str = "dummy"
+    PLC_ENDPOINTS: str = "orion_1=opc.tcp://192.168.213.1:4840"
+    PLC_POLL_SECONDS: float = 1.0
     
     # Supabase (Dedicated role URL + Admin credentials)
     SUPABASE_DB_URL: str = ""

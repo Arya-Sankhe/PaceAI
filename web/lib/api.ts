@@ -49,7 +49,22 @@ export const api = {
     req<{ url: string; expires_in: number }>(`/documents/${id}/pages/${num}/signed-url`),
   conversations: () => req<Conversation[]>("/conversations"),
   conversation: (id: string) => req<ConversationDetail>(`/conversations/${id}`),
+  source: () => req<SourceStatus>("/source"),
+  setSource: (mode: SourceMode) =>
+    req<SourceStatus>("/source", { method: "PUT", body: JSON.stringify({ mode }) }),
+  dashboardCatalog: (key: string) => req<Signal[]>(`/machines/${key}/dashboard/catalog`),
+  dashboardPlan: (key: string, prompt: string, current: PlannerWidget[], focus: string | null) =>
+    req<DashboardPlan>(`/machines/${key}/dashboard/plan`, {
+      method: "POST",
+      body: JSON.stringify({ prompt, current, focus }),
+    }),
 };
+
+export type SourceMode = "dummy" | "plc";
+export interface SourceStatus {
+  mode: SourceMode;
+  machines: Record<string, { endpoint: string; connected: boolean; error: string }>;
+}
 
 export type Freshness = "live" | "stale" | "disconnected" | "bad_quality" | "unknown";
 export interface MachineState {
@@ -65,3 +80,34 @@ export interface Manual { id: string; family_key: string; revision: string; titl
 export interface Conversation { id: string; machine_id: string; title: string; created_at: string; }
 export interface ChatMsg { role: string; content: string; evidence: Record<string, unknown>; created_at: string; }
 export interface ConversationDetail { id: string; title: string; messages: ChatMsg[]; }
+// Dashboards: the model chooses widgets, tags and derived expressions; every
+// number is drawn client-side from the machine endpoints.
+export interface Signal {
+  key: string; label: string; group: string; unit: string;
+  kind: "number" | "bool"; range?: [number, number];
+}
+export type WidgetType =
+  | "stat" | "gauge" | "line" | "bars" | "split" | "status" | "table"
+  | "heaters" | "drives" | "events";
+export type WidgetWindow = "live" | "1h" | "8h" | "24h" | "7d";
+// A tag read directly, or arithmetic over tags (validated server-side).
+export interface Metric { key?: string; expr?: string; label: string; unit?: string; }
+export interface PlannerWidget {
+  id?: string;
+  type: WidgetType;
+  title: string;
+  metrics?: Metric[];
+  window?: WidgetWindow;
+  target?: { key?: string; value?: number };
+  band?: number;
+  min?: number;
+  max?: number;
+  size?: "s" | "m" | "l" | "wide";
+}
+// Layout is the operator's, not the model's: grid cells, set by dragging.
+export interface Widget extends PlannerWidget { id: string; x: number; y: number; w: number; h: number; }
+export interface DashboardSpec { title: string; widgets: Widget[]; }
+export interface DashboardPlan {
+  title?: string; message: string;
+  add: PlannerWidget[]; update: (PlannerWidget & { id: string })[]; remove: string[];
+}

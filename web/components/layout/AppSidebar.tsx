@@ -5,6 +5,7 @@ import { useParams, usePathname, useSearchParams } from "next/navigation";
 import {
   Activity,
   ArrowUpRight,
+  Blocks,
   BookOpen,
   Cpu,
   Flame,
@@ -16,6 +17,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { MACHINES } from "@/components/cockpit/meta";
+import { DataSourceSwitch } from "./DataSourceSwitch";
 
 export type ViewId =
   | "overview"
@@ -24,6 +26,7 @@ export type ViewId =
   | "production"
   | "system"
   | "history"
+  | "dashboard"
   | "assistant";
 
 export const VIEWS: { id: ViewId; label: string; icon: typeof Gauge }[] = [
@@ -33,6 +36,7 @@ export const VIEWS: { id: ViewId; label: string; icon: typeof Gauge }[] = [
   { id: "production", label: "Production", icon: Activity },
   { id: "system", label: "System", icon: Cpu },
   { id: "history", label: "History", icon: History },
+  { id: "dashboard", label: "Dashboard", icon: Blocks },
   { id: "assistant", label: "Assistant", icon: Sparkles },
 ];
 
@@ -154,6 +158,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
 
       {/* bottom */}
       <div className="mt-auto flex flex-col gap-[3px] pt-4">
+        <DataSourceSwitch collapsed={collapsed} />
         <Link
           href="/manuals"
           aria-current={pathname.startsWith("/manuals") ? "page" : undefined}

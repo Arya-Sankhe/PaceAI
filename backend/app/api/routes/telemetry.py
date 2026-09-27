@@ -1,8 +1,10 @@
-"""Dummy-first cockpit API. All machine data enters through ``machine_source``."""
+"""Cockpit API. All machine data enters through ``machine_source`` (dummy or live PLC)."""
 
 from datetime import datetime
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel
 
 from app.api import deps
 from app.machine_source import source
@@ -39,7 +41,7 @@ async def list_machines(_=Depends(deps.require_user)):
 
 @router.get("/machines/{key}/latest", response_model=StateOut)
 async def latest(key: str, _=Depends(deps.require_user)):
-    return StateOut(**await _snapshot(key), source="dummy")
+    return StateOut(**await _snapshot(key), source=source.mode)
 
 
 @router.get("/machines/{key}/history", response_model=HistoryOut)
@@ -48,10 +50,27 @@ async def history(key: str, since: datetime, until: datetime, _=Depends(deps.req
     if days <= 0 or days > MAX_HISTORY_DAYS:
         raise HTTPException(400, "bad_range")
     await _snapshot(key)
-    return HistoryOut(machine_key=key, resolution="dummy", points=await source.history(key, since, until))
+    return HistoryOut(machine_key=key, resolution="dummy" if source.mode == "dummy" else "raw", points=await source.history(key, since, until))
 
 
 @router.get("/machines/{key}/events", response_model=list[EventOut])
 async def events(key: str, limit: int = Query(50, ge=1, le=100), _=Depends(deps.require_user)):
     await _snapshot(key)
     return (await source.events(key))[:limit]
+
+
+class SourceIn(BaseModel):
+    mode: Literal["dummy", "plc"]
+
+
+@router.get("/source")
+async def get_source(_=Depends(deps.require_user)):
+    """Where machine data comes from right now, and each PLC link's health."""
+    return source.status()
+
+
+@router.put("/source")
+async def set_source(body: SourceIn, request: Request, _=Depends(deps.require_admin)):
+    await source.set_mode(body.mode)
+    deps.log_admin("machine_source", request, body.mode)
+    return source.status()

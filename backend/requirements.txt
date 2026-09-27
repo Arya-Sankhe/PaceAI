@@ -15,6 +15,8 @@ pypdf==4.3.1
 pillow==10.4.0
 python-multipart==0.0.9
 pyyaml==6.0.2
+# Read-only OPC UA client for the live PLC source (MACHINE_SOURCE=plc).
+asyncua==1.1.8
 PyJWT==2.13.0
 cryptography==43.0.0
 tenacity==9.0.0

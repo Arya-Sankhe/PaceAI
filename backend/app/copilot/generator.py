@@ -112,7 +112,7 @@ def validate(answer: dict, allowed_ids: set[str], allowed_pages: list[dict] | No
     return clean
 
 
-async def generate(user_prompt: str, images: list[bytes]) -> tuple[dict, dict]:
+async def generate(user_prompt: str, images: list[bytes], system: str = prompt.SYSTEM) -> tuple[dict, dict]:
     """Returns (answer, meta{latency_ms}). Tries the configured tier first, then
     Standard on any failure (a shed Flex request is retried on Standard); fails
     closed only if both miss. Same two-attempt budget as the old identical retry."""
@@ -123,7 +123,7 @@ async def generate(user_prompt: str, images: list[bytes]) -> tuple[dict, dict]:
     for tier in tiers:
         try:
             raw = await anyio.to_thread.run_sync(
-                gemini.generate_json_multi, user_prompt, images, prompt.SYSTEM, tier,
+                gemini.generate_json_multi, user_prompt, images, system, tier,
             )
             return json.loads(raw), {"latency_ms": int((time.time() - t0) * 1000)}
         except Exception as e:  # noqa: BLE001 — shed, timeout, or invalid JSON
