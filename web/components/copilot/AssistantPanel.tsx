@@ -24,6 +24,10 @@ const PRESETS = [
 const INLINE_ORB_PX = 50;
 const COLUMN = "mx-auto w-full max-w-[900px]";
 
+// What the model needs to remember of an earlier answer: the verdict, then the steps.
+const gist = (a: Diagnosis) =>
+  [a.verdict, ...a.next_checks.map((c, i) => `${i + 1}. ${c}`)].filter(Boolean).join(" ").slice(0, 1200);
+
 const BOTTOM_SLACK = 48;
 // Matches the .voice-layer--out / .voice-orb-shrink duration in globals.css.
 const CLOSE_MS = 260;
@@ -32,7 +36,7 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
   const [input, setInput] = useState("");
   const [voice, setVoice] = useState(false);
   const [closing, setClosing] = useState(false);
-  const { busy, status, step, answer, error, ask } = useCopilotStream(machineKey);
+  const { busy, status, step, answer, error, ask, cancel } = useCopilotStream(machineKey);
   const { answer: shown, streaming } = useProgressiveAnswer(answer);
   const { say, stop: stopSpeech, playing, caption: spokenCaption, blocked } = useSpeech();
 
@@ -59,11 +63,17 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
   const askThreaded = useCallback(
     (text: string, language?: string) => {
       const previous = latest.current;
-      if (previous) setHistory((h) => [...h, { question: asked, answer: previous }]);
+      const turns = previous ? [...history, { question: asked, answer: previous }] : history;
+      if (previous) setHistory(turns);
       setAsked(text);
-      void ask(text, language);
+      // The model sees the last few turns as question + verdict, enough to follow up.
+      void ask(
+        text,
+        language,
+        turns.slice(-6).map((t) => ({ question: t.question.slice(0, 500), answer: gist(t.answer) })),
+      );
     },
-    [ask, asked],
+    [ask, asked, history],
   );
 
   const agent = useVoiceAgent({
@@ -89,6 +99,16 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
       }
     };
   });
+
+  // "Speak again": abandon the question in flight, silence any filler, listen anew.
+  const speakAgain = () => {
+    stopSpeech();
+    cancel();
+    latest.current = null;
+    setAsked("");
+    spokenQuestion.current = false;
+    agent.restart();
+  };
 
   const closeVoice = useCallback(
     (cancelSpeech = false) => {
@@ -132,12 +152,17 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
     el.scrollTop = el.scrollHeight;
   }, [shown, streaming, status, busy, asked, history.length]);
 
-  // Our own scrolls always land at the bottom, so anything short of the bottom
-  // can only be the reader — no need to guess at wheel/touch intent.
+  // Following stops the instant the reader takes over (wheel up, touch drag,
+  // scrollbar grab, navigation keys) and only resumes once they are back at the
+  // bottom. Scroll events alone can't tell them apart from content growth.
+  const touching = useRef(false);
+  const stopFollow = () => {
+    follow.current = false;
+  };
   const onScroll = () => {
     const el = scrollRef.current;
-    if (!el) return;
-    follow.current = el.scrollHeight - el.scrollTop - el.clientHeight <= BOTTOM_SLACK;
+    if (!el || touching.current) return;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight <= BOTTOM_SLACK) follow.current = true;
   };
 
   const submit = (text: string) => {
@@ -259,6 +284,25 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
           <div
             ref={scrollRef}
             onScroll={onScroll}
+            onWheel={(e) => {
+              if (e.deltaY < 0) stopFollow();
+            }}
+            onTouchStart={() => {
+              touching.current = true;
+            }}
+            onTouchMove={stopFollow}
+            onTouchEnd={() => {
+              touching.current = false;
+            }}
+            onTouchCancel={() => {
+              touching.current = false;
+            }}
+            onPointerDown={(e) => {
+              if (e.target === e.currentTarget) stopFollow();
+            }}
+            onKeyDown={(e) => {
+              if (["ArrowUp", "PageUp", "Home"].includes(e.key)) stopFollow();
+            }}
             className="assistant-rise min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-8"
           >
             <div className={`${COLUMN} space-y-5`}>
@@ -324,6 +368,7 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
               : spokenCaption || agent.transcript
           }
           closing={closing}
+          onSpeakAgain={agent.phase === "thinking" ? speakAgain : null}
           onClose={() => closeVoice(true)}
         />
       )}
@@ -336,7 +381,7 @@ export function AssistantPanel({ machineKey }: { machineKey: string }) {
 function QuestionLine({ text }: { text: string }) {
   return (
     <p className="flex justify-end">
-      <span className="max-w-[85%] rounded-full border border-white/10 bg-white/[0.06] px-3.5 py-1.5 text-[13px] text-white/60">
+      <span className="font-answer max-w-[85%] rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-[16px] text-white/75">
         {text}
       </span>
     </p>

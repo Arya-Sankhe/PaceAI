@@ -14,6 +14,7 @@ const STEPS = 200;
 
 function bodyLength(a: Diagnosis) {
   return (
+    (a.verdict ?? "").length +
     a.observed_facts.join("").length +
     a.hypotheses.reduce((n, h) => n + h.cause.length + h.supports.length + h.conflicts.length, 0) +
     a.next_checks.join("").length
@@ -36,23 +37,25 @@ function visibleUpTo(a: Diagnosis, budget: number): Diagnosis {
     return head;
   };
 
-  const observed_facts = a.observed_facts.map(take).filter(Boolean);
+  const verdict = take(a.verdict ?? "");
+  const next_checks = a.next_checks.map(take).filter(Boolean);
   const hypotheses: Diagnosis["hypotheses"] = [];
   for (const h of a.hypotheses) {
     if (left <= 0) break;
     hypotheses.push({ ...h, cause: take(h.cause), supports: take(h.supports), conflicts: take(h.conflicts) });
   }
-  const next_checks = a.next_checks.map(take).filter(Boolean);
+  const observed_facts = a.observed_facts.map(take).filter(Boolean);
 
-  // Sources and the chart land with the finished answer, never ahead of the text
-  // they support.
+  // Only called while text is still revealing: sources and the chart land with
+  // the finished answer (the full object), never ahead of the text.
   return {
     ...a,
+    verdict,
     observed_facts,
     hypotheses,
     next_checks,
-    citations: left <= 0 ? a.citations : [],
-    visual: left <= 0 ? a.visual : null,
+    citations: [],
+    visual: null,
   };
 }
 

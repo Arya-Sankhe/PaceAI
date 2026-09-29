@@ -102,8 +102,15 @@ export function useVoiceAgent({
     [ask, micStop, say],
   );
 
+  // Throw the turn away and listen again from a clean slate.
+  const restart = useCallback(() => {
+    setTranscript("");
+    turnLang.current = ttsLanguage();
+    void micStart();
+  }, [micStart]);
+
   const phase: VoicePhase = busy ? "thinking" : listening ? "listening" : "connecting";
   const orb: OrbState = busy ? (ORB_FOR_STEP[step] ?? "working") : listening ? "listening" : "connecting";
 
-  return { phase, orb, transcript, handleUtterance };
+  return { phase, orb, transcript, handleUtterance, restart };
 }

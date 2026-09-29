@@ -45,7 +45,7 @@ PROMPT = (
 # A turn ends after this much silence in the audio stream. Pinned explicitly
 # because it decides how long a mid-sentence pause may be before the transcript
 # is split into a second turn (the client appends every final, so nothing is lost).
-SILENCE_DURATION_MS = 500
+SILENCE_DURATION_MS = 1500
 # How long to keep reading after the client stops, so the last utterance's
 # transcript.final still lands before we close.
 FLUSH_TIMEOUT_S = 4.0

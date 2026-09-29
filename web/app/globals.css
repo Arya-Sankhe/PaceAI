@@ -887,3 +887,17 @@ button {
   .dash-ghost,
   .dash-composer--busy::before { animation: none; }
 }
+
+/* Chat answers read like prose, so they get the serif; UI chrome inside stays sans. */
+.font-answer {
+  font-family: var(--font-serif), Georgia, "Times New Roman", serif;
+}
+.font-answer .font-ui {
+  font-family: ui-sans-system, -apple-system, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+}
+
+.voice-turn { animation: voice-turn-in 0.28s ease-out both; }
+@keyframes voice-turn-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.92); }
+  to { opacity: 1; transform: none; }
+}

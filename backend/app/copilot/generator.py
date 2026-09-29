@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.core.language import tts_language
 from app.copilot import prompt
 
-REQUIRED = ("observed_facts", "hypotheses", "next_checks", "safety_warning",
+REQUIRED = ("verdict", "observed_facts", "hypotheses", "next_checks", "safety_warning",
             "freshness_warning", "speech_summary", "language_code", "citations", "visual")
 
 # The model only chooses which chart helps; the values are fetched client-side
@@ -30,6 +30,7 @@ def validate(answer: dict, allowed_ids: set[str], allowed_pages: list[dict] | No
     if not isinstance(answer, dict):
         raise DiagnosticError("bad_model_output")
     clean = {k: answer.get(k) for k in REQUIRED}
+    clean["verdict"] = str(clean["verdict"] or "")[:1000]
     clean["observed_facts"] = [str(x)[:500] for x in (clean["observed_facts"] or [])][:20]
     clean["hypotheses"] = [
         {

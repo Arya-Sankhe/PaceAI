@@ -69,10 +69,13 @@ async def chat(key: str, body: ChatIn, request_user=Depends(deps.require_user)):
         yield _sse("status", "retrieving manuals")
         # ponytail: fresh pool connection per stage — chat holds none across Gemini seconds
         async with pool.acquire() as conn:
-            pages, images = await retrieval.retrieve(conn, body.message)
+            # a follow-up ("and the rear one?") is too thin to search on alone
+            query = f"{body.history[-1].question} {body.message}" if body.history else body.message
+            pages, images = await retrieval.retrieve(conn, query)
         user_prompt = prompt.build_user(
             body.message, key, fresh, age, values, events, pages, source.mode,
             state.get("info") or {}, state.get("titles") or {}, language=body.language,
+            history=[t.model_dump() for t in body.history],
         )
 
         yield _sse("status", "generating")

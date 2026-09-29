@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { demoMode } from "@/lib/api";
 
@@ -11,6 +11,7 @@ export interface Visual {
   window?: "1h" | "8h" | "24h" | "7d";
 }
 export interface Diagnosis {
+  verdict?: string;
   observed_facts: string[]; hypotheses: { cause: string; supports: string; conflicts: string }[];
   next_checks: string[]; safety_warning: string; freshness_warning: string;
   speech_summary: string; language_code: string; citations: Citation[]; visual?: Visual | null;
@@ -26,14 +27,26 @@ export function useCopilotStream(machineKey: string) {
   const [error, setError] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
 
-  async function ask(message: string, language?: string) {
+  const abort = useRef<AbortController | null>(null);
+
+  // Drop the question in flight (voice: the reader started over).
+  function cancel() {
+    abort.current?.abort();
+    abort.current = null;
+    setBusy(false); setStatus(""); setStep(""); setAnswer(null); setError(null);
+  }
+
+  async function ask(message: string, language?: string, history: { question: string; answer: string }[] = []) {
+    abort.current?.abort();
+    const ctl = (abort.current = new AbortController());
     setBusy(true); setStatus(""); setStep(""); setCitations([]); setAnswer(null); setError(null);
     try {
       const { data } = demoMode ? { data: { session: null } } : await supabase().auth.getSession();
       const res = await fetch(`/api/v1/machines/${machineKey}/chat`, {
         method: "POST",
+        signal: ctl.signal,
         headers: { "Content-Type": "application/json", ...(data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {}) },
-        body: JSON.stringify({ message, ...(conversationId ? { conversation_id: conversationId } : {}), ...(language ? { language } : {}) }),
+        body: JSON.stringify({ message, ...(conversationId ? { conversation_id: conversationId } : {}), ...(language ? { language } : {}), history }),
       });
       if (!res.ok || !res.body) throw new Error("chat_failed");
       const reader = res.body.getReader();
@@ -63,13 +76,12 @@ export function useCopilotStream(machineKey: string) {
         }
       }
     } catch (e) {
+      if (ctl.signal.aborted) return;
       setError(e instanceof Error ? e.message : "chat_failed");
     } finally {
-      setBusy(false);
-      setStatus("");
-      setStep("");
+      if (!ctl.signal.aborted) { setBusy(false); setStatus(""); setStep(""); }
     }
   }
 
-  return { busy, status, step, citations, answer, error, conversationId, ask };
+  return { busy, status, step, citations, answer, error, conversationId, ask, cancel };
 }
