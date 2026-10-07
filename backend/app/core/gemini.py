@@ -61,7 +61,7 @@ def generate_json(
         model=settings.GEMINI_MODEL,
         contents=parts,
         config=types.GenerateContentConfig(
-            response_mime_type="application/json", temperature=0.1,
+            response_mime_type="application/json",
             system_instruction=system_instruction,
             service_tier=service_tier or settings.GEMINI_SERVICE_TIER,
         ),

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PaceAI — Machine Efficiency &amp; Speed Analysis</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #171d24;
+    --panel-2: #1d242d;
+    --border: #2a333d;
+    --text: #dce3ea;
+    --muted: #8b98a5;
+    --accent: #4fd1c5;
+    --accent-2: #63b3ed;
+    --warn: #f6ad55;
+    --bad: #fc8181;
+    --good: #68d391;
+    --code-bg: #10161c;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 48px 28px 96px; }
+
+  header.hero {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 32px;
+    margin-bottom: 8px;
+  }
+  .kicker {
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+  h1 { font-size: 34px; line-height: 1.2; margin: 0 0 12px; font-weight: 750; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 16px; margin: 0; }
+  .meta { margin-top: 18px; font-size: 13px; color: var(--muted); display: flex; gap: 24px; flex-wrap: wrap; }
+  .meta code { color: var(--accent-2); }
+
+  nav.toc {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(15,20,25,0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    margin: 0 -28px 36px;
+    padding: 14px 28px;
+    display: flex; gap: 18px; flex-wrap: wrap;
+    font-size: 13px;
+  }
+  nav.toc a { color: var(--muted); text-decoration: none; font-weight: 600; }
+  nav.toc a:hover { color: var(--accent); }
+
+  h2 {
+    font-size: 23px; margin: 52px 0 8px; font-weight: 700; letter-spacing: -0.01em;
+    padding-top: 8px;
+  }
+  h2 .num { color: var(--accent); font-variant-numeric: tabular-nums; margin-right: 10px; }
+  h3 { font-size: 16px; margin: 28px 0 8px; font-weight: 700; color: var(--accent-2); }
+  p { margin: 10px 0; }
+  a { color: var(--accent-2); }
+  strong { color: #fff; font-weight: 650; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+  ul, ol { margin: 10px 0; padding-left: 22px; }
+  li { margin: 6px 0; }
+
+  code {
+    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 13px;
+    color: #a5e8df;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  pre code { background: none; border: none; padding: 0; color: #c7d5e0; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin: 18px 0;
+  }
+  .card.accent { border-left: 3px solid var(--accent); }
+  .card.warn { border-left: 3px solid var(--warn); }
+  .card.bad { border-left: 3px solid var(--bad); }
+  .card.good { border-left: 3px solid var(--good); }
+  .card h3 { margin-top: 0; }
+
+  .lede {
+    font-size: 17px;
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin: 24px 0;
+  }
+
+  table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.08em; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .tag {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+    padding: 2px 8px; border-radius: 999px; text-transform: uppercase;
+  }
+  .tag.good { background: rgba(104,211,145,0.14); color: var(--good); }
+  .tag.warn { background: rgba(246,173,85,0.14); color: var(--warn); }
+  .tag.bad { background: rgba(252,129,129,0.14); color: var(--bad); }
+  .tag.info { background: rgba(99,179,237,0.14); color: var(--accent-2); }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } h1 { font-size: 26px; } }
+
+  .kv { font-size: 14px; }
+  .kv b { color: var(--muted); font-weight: 600; display: inline-block; min-width: 130px; }
+
+  footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+  .pill-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="kicker">PaceAI · Orion VFFS · Analysis</div>
+    <h1>Unlocking More Output — Machine Efficiency &amp; Speed Analysis</h1>
+    <p class="sub">How the OPC UA data path works, what the previous-state gap really is, and where safe speed gains can come from on a live VFFS line.</p>
+    <div class="meta">
+      <span>Scope: <code>orion_1</code> / <code>orion_2</code> · B&amp;R 4PPC80.121E-10A</span>
+      <span>Source: read-only, in-memory</span>
+      <span>Generated for review</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#context">1 · OPC UA &amp; machine</a>
+    <a href="#snapshot">2 · Previous-state gap</a>
+    <a href="#servo">3 · The servo question</a>
+    <a href="#deviations">4 · Deviation catalogue</a>
+    <a href="#levers">5 · Safe output levers</a>
+    <a href="#tracking">6 · Speed tracking</a>
+    <a href="#gaps">7 · Data gaps</a>
+    <a href="#next">8 · Next steps</a>
+  </nav>
+
+  <p class="lede">
+    <strong>Bottom line.</strong> A VFFS is a master-cycle machine: the axis in the synchronized critical path caps the whole line's rate. The good news is the tags we already poll contain enough signal to <em>identify that constraint before it derates us</em> — by watching each axis's rpm-to-speed coupling ratio and its current-per-rpm load. Most recoverable output sits in two places: closing the <code>actual_speed</code> ↔ <code>set_speed</code> gap (stability, not control) and fixing the one axis or heater zone that deviates first as speed rises.
+  </p>
+
+  <!-- 1 -->
+  <h2 id="context"><span class="num">01</span>How the OPC UA data path works</h2>
+
+  <p>There is <strong>no port registry</strong> in this codebase. "Port" means two different things depending on context:</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>The one real TCP port</h3>
+      <p><code>4840</code> — the OPC UA default, embedded in the endpoint string <code>opc.tcp://192.168.137.10:4840</code>.</p>
+      <p class="kv"><b>Defined</b> <code>backend/app/core/config.py:26</code></p>
+      <p class="kv"><b>Parsed</b> <code>machine_source.py:93</code> — only the <em>hostname</em> is read back; the port is never used after connect.</p>
+    </div>
+    <div class="card">
+      <h3>The "port list" = tag manifest</h3>
+      <p>The metric mapping lives in <code>backend/collector/config/tags.yaml</code> — ~170 entries of <em>key → OPC UA NodeId</em>.</p>
+      <p class="kv"><b>Example</b> <code>hor_front_temp → ns=6;s=::AsGlobalPV:AnaTemp.HorFront</code></p>
+      <p class="kv"><b>Allowlist</b> "Cloud never sends node IDs" — <code>tags.yaml:1</code></p>
+    </div>
+  </div>
+
+  <h3>The collector ignores the poll classes</h3>
+  <p>Every tag carries <code>class: fast | slow | event</code> (<code>tags.yaml:12</code>: fast = 1 s, slow = 5 s, event = immediate). But the reader builds one flat node list and batch-reads <em>everything</em> every poll at <code>PLC_POLL_SECONDS = 1.0</code>.</p>
+  <ul>
+    <li><code>_plan()</code> — <code>backend/collector/plc.py:33</code></li>
+    <li><code>read()</code> — <code>backend/collector/plc.py:96</code></li>
+  </ul>
+  <p><span class="tag warn">Opportunity</span> The <code>fast/slow/event</code> split is currently dead metadata — honoring it would cut PLC load and network chatter with no loss of useful resolution.</p>
+
+  <h3>What the machine is</h3>
+  <p>A <strong>B&amp;R Orion VFFS (vertical form-fill-seal) bagger</strong>, model <code>4PPC80.121E-10A</code>, PLC software <code>S4.93</code> (from the commissioning fixture). The manifest groups its signals as:</p>
+  <table>
+    <tr><th>Subsystem</th><th>Members</th><th>Key tags</th></tr>
+    <tr><td><strong>4 PID heaters</strong></td><td>hor_front, hor_rear, vert1, vert2</td><td><code>*_temp</code>, <code>*_set</code>, <code>*_output</code>, <code>*_tol</code></td></tr>
+    <tr><td><strong>6 servo axes</strong></td><td>BX box forming, CS cross seal, FF film feed, PK poker, UW unwind, VS vertical seal</td><td><code>*_rpm</code>, <code>*_current</code>, <code>*_temp</code>, <code>*_error_id/active</code></td></tr>
+    <tr><td><strong>OEE block</strong></td><td>oee, availability, performance, quality</td><td>7 util buckets, 23 planned + 11 unplanned reason arrays</td></tr>
+    <tr><td><strong>I/O &amp; state</strong></td><td>poker, dancer, e-stop, run flags</td><td><code>advance_cycle_dump</code>, <code>alarm_count</code>, <code>actual/set/max_speed</code></td></tr>
+  </table>
+  <p><span class="tag bad">Caveat</span> <code>fault_code</code>, <code>count_good</code>, <code>count_bad</code>, <code>running</code> are still <code>::TBD:</code> nodes — skipped at read time (<code>plc.py:40</code>). Those report columns come from the <em>dummy</em> source only today.</p>
+
+  <!-- 2 -->
+  <h2 id="snapshot"><span class="num">02</span>The previous-state gap</h2>
+  <p>When no machine is connected, finding "the live snapshot from a previous time" is limited — and this is the single biggest structural constraint on any speed work.</p>
+
+  <div class="card warn">
+    <h3>Nothing is persisted</h3>
+    <p>History lives in <strong>RAM only</strong>: every 1 s poll kept for 15 minutes (<code>fine</code>), downsampled to one sample/minute for 7 days (<code>coarse</code>). A process restart wipes both.</p>
+    <p class="kv"><b>Evidence</b> <code>machine_source.py:86-90</code>, <code>_remember()</code> <code>:165</code></p>
+    <p class="kv"><b>Migration note</b> "telemetry … is not persisted" — <code>migrations/001_initial_schema.sql:8</code></p>
+  </div>
+
+  <p>When disconnected, <code>snapshot()</code> returns the last good read with <code>freshness="disconnected"</code> and an age — <strong>but only if that process actually connected before</strong>. Otherwise <code>values</code> arrives as <code>{}</code> (<code>machine_source.py:228-245</code>).</p>
+
+  <p>The only <strong>durable</strong> record of prior machine state is the commissioning grab:</p>
+  <div class="card accent">
+    <p class="kv"><b>File</b> <code>backend/collector/fixtures/snapshot_orion_1.json</code></p>
+    <p class="kv"><b>Captured</b> server_time <code>2026-07-08T17:17:23</code></p>
+    <p class="kv"><b>Source IP</b> <code>192.168.213.1</code></p>
+    <p class="kv"><b>State in file</b> heaters idle ~34 °C with 155 / 165 °C setpoints; unwind moving, other axes near zero</p>
+  </div>
+  <p><span class="tag warn">Implication</span> Without persistence, the speed tracking below can run <em>live</em> but cannot build baselines across restarts. Persistence is the enabler — and it is independent of any write path.</p>
+
+  <!-- 3 -->
+  <h2 id="servo"><span class="num">03</span>If one servo underperforms, does it slow the whole machine?</h2>
+
+  <div class="card accent">
+    <p style="margin:0"><strong>Yes — if it is in the synchronized critical path. And the data tells us which axes those are.</strong></p>
+  </div>
+
+  <p>Most VFFS axes are cam/eCam-coupled to a single master angle. At a given bags/min, each coupled axis has a <em>required</em> rpm (fixed gear ratio) and a <em>required</em> torque. If an axis can't reach required rpm (following error) or exhausts torque (current saturation), the master derates or faults — the whole line slows. Some axes are <em>not</em> coupled (unwind tension, auxiliaries) and can underperform without directly capping rate.</p>
+
+  <p>So the operative question is not "is a drive slow" but <strong>"is that drive the constraint, and how do I see it before it derates me?"</strong> We can compute that from tags already polled:</p>
+
+  <table>
+    <tr><th>Signal</th><th>Formula</th><th>Reads as</th></tr>
+    <tr><td><strong>Coupling ratio</strong></td><td><code>R = {ax}_rpm / actual_speed</code></td><td>Flat → axis is cam-coupled (critical path). Wandering → decoupled.</td></tr>
+    <tr><td><strong>Constraint onset</strong></td><td>deviation of <code>R</code> from its learned baseline as <code>actual_speed</code> rises</td><td>First axis to deviate is the emerging bottleneck.</td></tr>
+    <tr><td><strong>Torque headroom</strong></td><td><code>{ax}_current</code> vs its rpm/current curve</td><td>Current climbing off the curve = running out of headroom.</td></tr>
+    <tr><td><strong>True cycle rate</strong></td><td><code>Δadvance_cycle_dump / Δt</code></td><td>Real bags/min from a cycle counter — independent of the HMI speed number.</td></tr>
+    <tr><td><strong>Fault signature</strong></td><td><code>{ax}_error_active</code> + <code>{ax}_error_id</code> + <code>_error_text</code></td><td>Which axis tripped, joinable to speed at that instant.</td></tr>
+  </table>
+
+  <p>For a VFFS the usual critical axes are <strong>FF (film feed)</strong> — sets film advance per cycle, <strong>CS (cross seal)</strong> — seal dwell eats cycle time, <strong>VS (vertical seal)</strong> — tied to film speed, and <strong>UW (unwind)</strong> indirectly via tension. <code>PK</code> / <code>BX</code> matter only if their motion sits inside the cycle window.</p>
+
+  <!-- 4 -->
+  <h2 id="deviations"><span class="num">04</span>Deviation catalogue — what costs output, and the tag that shows it</h2>
+
+  <table>
+    <tr><th>Deviation</th><th>Why it costs output</th><th>Revealed by</th></tr>
+    <tr>
+      <td><strong>Seal-dwell constraint</strong> <span class="tag bad">top suspect</span></td>
+      <td>Marginal seals force longer dwell → cyclic rate drops; the classic VFFS ceiling.</td>
+      <td><code>{zone}_output</code> high while <code>{zone}_temp</code> sags below set; <code>{zone}_tol</code> flips false clustering at higher speed.</td>
+    </tr>
+    <tr>
+      <td><strong>Film tension / tracking</strong></td>
+      <td>Film slip → can't hold speed, reject rate rises. A common hidden derate.</td>
+      <td><code>dancer_pos</code> off its idle band, <code>uw_current</code> rising, <code>web_roll_center</code> wandering.</td>
+    </tr>
+    <tr>
+      <td><strong>Mechanical drag</strong></td>
+      <td>Load builds → axis becomes the constraint; leading maintenance signal.</td>
+      <td><code>{ax}_current</code> creeping at constant <code>{ax}_rpm</code> / <code>{ax}_temp</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>Micro-stops</strong></td>
+      <td>Many short stops destroy availability more than one long stop.</td>
+      <td>Rise in <code>alarm_count</code> per <code>advance_cycle_dump</code> delta.</td>
+    </tr>
+    <tr>
+      <td><strong>Configured headroom</strong></td>
+      <td><code>set_speed</code> &lt; <code>max_speed</code> is deliberately unused capacity.</td>
+      <td><code>set_speed</code> vs <code>max_speed</code> vs <code>actual_speed</code> gap decomposition.</td>
+    </tr>
+  </table>
+
+  <h3>Performance loss decomposes three ways</h3>
+  <pre><code>actual / set   →  production inefficiency, drift, micro-stops
+set / max      →  headroom the line is configured NOT to use
+actual / max   →  the OEE performance figure the HMI reports</code></pre>
+  <p>The first ratio is where recoverable output usually hides. The second is the safe-to-explore territory, gated by the constraint detector.</p>
+
+  <!-- 5 -->
+  <h2 id="levers"><span class="num">05</span>Safe ways to unlock output — ranked by risk</h2>
+  <ol>
+    <li><strong>Close the actual↔set gap.</strong> No process change — pure stability: film tension, seal heat, stop reduction.</li>
+    <li><strong>Hunt the constraint at current set_speed.</strong> Find the axis/zone that deviates first and fix it mechanically. No control change.</li>
+    <li><strong>Raise set_speed only while guardrails hold.</strong> Quality flat (<code>*_tol</code> flips and rejects not rising) AND no axis's current/rpm ratio declining. This is a <em>supervised</em> trial — the point where a write path would eventually help, but the analysis stands alone first.</li>
+    <li><strong>Improve heater control to shorten dwell.</strong> Better temperature stability buys cycle time without touching speed.</li>
+  </ol>
+  <div class="card good">
+    <p style="margin:0"><strong>Safety guardrail:</strong> faster sealing can produce weak seals — running quicker is only "safe" while reject rate and seal-zone tolerance stay flat. Every speed trial must carry a quality abort condition.</p>
+  </div>
+
+  <!-- 6 -->
+  <h2 id="tracking"><span class="num">06</span>Speed tracking design</h2>
+  <p>Per snapshot, record and roll these series (all tags we already poll):</p>
+  <ul>
+    <li><code>actual_speed</code>, <code>set_speed</code>, <code>max_speed</code></li>
+    <li>every <code>{ax}_rpm</code>, <code>{ax}_current</code></li>
+    <li>every <code>{zone}_temp</code>, <code>{zone}_output</code>, <code>{zone}_tol</code></li>
+    <li><code>dancer_pos</code>, <code>advance_cycle_dump</code>, <code>alarm_count</code></li>
+  </ul>
+  <p>Then compute rolling, and surface the first one to degrade as speed rises:</p>
+  <div class="pill-row">
+    <span class="tag info">cycle rate from counter</span>
+    <span class="tag info">per-axis coupling ratio</span>
+    <span class="tag info">per-axis current-per-rpm</span>
+    <span class="tag info">heater in-tol %</span>
+    <span class="tag info">stops per 1000 bags</span>
+  </div>
+  <p>This is a small <strong>pure function over history points</strong>, testable against the dummy source — a good first build because it directly answers "which drive is limiting us."</p>
+
+  <!-- 7 -->
+  <h2 id="gaps"><span class="num">07</span>Data gaps worth closing</h2>
+  <div class="grid">
+    <div class="card warn">
+      <h3>No air-pressure tag</h3>
+      <p>"Air Pressure Error" is a top unplanned reason, yet no pressure signal is in the manifest — the report can see the symptom but not the cause.</p>
+    </div>
+    <div class="card warn">
+      <h3>No per-cycle timing/position</h3>
+      <p>No cycle-time or per-cycle position tag; <code>advance_cycle_dump</code> is the only cycle proxy. Cycle-level timing would sharpen constraint detection a lot.</p>
+    </div>
+    <div class="card warn">
+      <h3>No telemetry persistence</h3>
+      <p>RAM-only history (15 min fine / 7 day coarse, wiped on restart) means no cross-restart baselines or trend tracking.</p>
+    </div>
+    <div class="card warn">
+      <h3>TBD production tags</h3>
+      <p><code>count_good</code>, <code>count_bad</code>, <code>running</code>, <code>fault_code</code> are unverified <code>::TBD:</code> nodes — quality-vs-speed needs them verified on site.</p>
+    </div>
+  </div>
+
+  <!-- 8 -->
+  <h2 id="next"><span class="num">08</span>Suggested next steps</h2>
+  <ol>
+    <li><strong>Build the <code>speed_tracking</code> analyzer</strong> — coupling ratios + constraint detection + cycle-rate-from-counter, as a pure function over <code>source.history(...)</code>, wired into the cockpit and the shift report.</li>
+    <li><strong>Add telemetry persistence</strong> — a samples table fed from the <code>_run()</code> loop, so tracking survives restarts and baselines can form.</li>
+    <li><strong>Verify the <code>::TBD:</code> nodes on site</strong> — unlocks quality-vs-speed analysis.</li>
+    <li><strong>Honor <code>fast/slow/event</code> poll classes</strong> — lower PLC load, no resolution loss.</li>
+  </ol>
+  <p>Writes to the machine remain out of scope for this analysis — the recommended path starts with advisory output and only reaches supervised writes once the constraint detector is trusted.</p>
+
+  <footer>
+    PaceAI Orion — efficiency &amp; speed analysis. Grounded in the current read-only data path; figures reference the repository at the time of writing.
+  </footer>
+
+</div>
+</body>
+</html>

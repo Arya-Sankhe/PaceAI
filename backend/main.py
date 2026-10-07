@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import chat, dashboard, documents, speech, telemetry
+from app.api.routes import chat, dashboard, documents, report, speech, telemetry
 from app.core import db
 from app.core.config import settings
 from app.machine_source import source
@@ -28,6 +28,7 @@ def create_app() -> FastAPI:
     app.include_router(documents.router, prefix=settings.API_V1_STR, tags=["manuals"])
     app.include_router(chat.router, prefix=settings.API_V1_STR, tags=["copilot"])
     app.include_router(dashboard.router, prefix=settings.API_V1_STR, tags=["dashboard"])
+    app.include_router(report.router, prefix=settings.API_V1_STR, tags=["report"])
     app.include_router(speech.router, prefix=settings.API_V1_STR, tags=["speech"])
 
     @app.get("/health/live")

@@ -22,6 +22,7 @@ import { TempQuadrants } from "@/components/cockpit/TempQuadrants";
 import { LiveTrendCard } from "@/components/cockpit/LiveTrendCard";
 import { MachineInfoCard, MachineStatusCard } from "@/components/cockpit/MachinePanels";
 import { OeePanel } from "@/components/cockpit/OeePanel";
+import { ReportButton } from "@/components/cockpit/ReportButton";
 import { HealthCard, OeeCard, SpeedCard, machineIssues, machineState } from "@/components/cockpit/LinePanels";
 import { HistoryView } from "@/components/cockpit/HistoryView";
 import { AssistantPanel } from "@/components/copilot/AssistantPanel";
@@ -133,6 +134,9 @@ function CockpitInner() {
 
       {tab === "overview" && (
         <div className="space-y-4">
+          <div className="flex justify-end">
+            <ReportButton machineKey={key} />
+          </div>
           {/* problem box — its own glass window, only when something is wrong */}
           {hasAttention ? (
             <section
@@ -339,7 +343,10 @@ function CockpitInner() {
 
       {tab === "production" && (
         <div className="enter space-y-4">
-          <SectionIntro title="Production" sub="Output, scrap and shift time." />
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <SectionIntro title="Production" sub="Output, scrap and shift time." />
+            <ReportButton machineKey={key} />
+          </div>
           <OeePanel values={v} titles={titles} />
         </div>
       )}

@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # Machine data: "dummy" (generated) or "plc" (live OPC UA, read-only).
     # Switchable at runtime from the app; this is only the value at boot.
     MACHINE_SOURCE: str = "dummy"
-    PLC_ENDPOINTS: str = "orion_1=opc.tcp://192.168.213.1:4840"
+    PLC_ENDPOINTS: str = "orion_1=opc.tcp://192.168.137.10:4840"
     PLC_POLL_SECONDS: float = 1.0
     
     # Supabase (Dedicated role URL + Admin credentials)

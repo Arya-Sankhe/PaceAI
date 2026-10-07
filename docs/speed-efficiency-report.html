@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PaceAI — Speed &amp; Efficiency Analysis</title>
+<style>
+  :root{
+    --bg:#ffffff; --text:#1a202c; --muted:#64748b; --line:#e2e8f0;
+    --accent:#0d9488; --accent-soft:#f0fdfa; --warn:#b45309; --warn-soft:#fffbeb;
+    --bad:#b91c1c; --code-bg:#f1f5f9;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:16px;line-height:1.6;
+  }
+  .wrap{max-width:860px;margin:0 auto;padding:56px 26px 88px}
+  .kicker{text-transform:uppercase;letter-spacing:.14em;font-size:11px;font-weight:700;color:var(--accent);margin-bottom:10px}
+  h1{font-size:30px;line-height:1.2;margin:0 0 8px;letter-spacing:-.02em}
+  .sub{color:var(--muted);margin:0 0 40px;font-size:15px}
+  h2{font-size:20px;margin:44px 0 6px;padding-bottom:8px;border-bottom:2px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:10px}
+  h3{font-size:15px;margin:22px 0 6px;color:#0f766e}
+  p{margin:9px 0}
+  ul,ol{margin:9px 0;padding-left:22px}
+  li{margin:5px 0}
+  strong{font-weight:650}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;background:var(--code-bg);
+    border-radius:4px;padding:1px 6px;font-size:13px;color:#0f766e}
+  .callout{background:var(--accent-soft);border:1px solid #99f6e4;border-left:4px solid var(--accent);
+    border-radius:8px;padding:16px 20px;margin:20px 0;font-size:16px}
+  .callout.warn{background:var(--warn-soft);border-color:#fde68a;border-left-color:var(--warn)}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  .tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    padding:2px 7px;border-radius:999px;background:#ccfbf1;color:#0f766e}
+  .tag.red{background:#fee2e2;color:#b91c1c}
+  footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">PaceAI · Orion VFFS</div>
+  <h1>Speed &amp; Efficiency Analysis</h1>
+  <p class="sub">Can we safely unlock more output from the machine — and what the data already tells us.</p>
+
+  <div class="callout">
+    <strong>Will one underperforming servo slow the whole machine?</strong> Yes — but only if it sits in the synchronized critical path, and the data tells us which axes those are.
+  </div>
+
+  <p>A VFFS is a <strong>master-cycle machine</strong>: most axes are cam/eCam-coupled to one master angle. At a given bags/min, each coupled axis has a required rpm (fixed gear ratio) and a required torque. If an axis can't hit its required rpm (following error) or runs out of torque (current saturation), the master derates or faults — the whole line slows. Non-coupled axes (unwind tension, auxiliaries) can underperform without directly capping rate.</p>
+
+  <p>So the real question isn't "is one drive slow" — it's <strong>"is that drive the constraint, and can I see it before it derates me?"</strong> We can compute that from the tags we already poll:</p>
+
+  <table>
+    <tr><th>Signal</th><th>Formula</th><th>Reads as</th></tr>
+    <tr><td><strong>Coupling ratio</strong></td><td><code>{ax}_rpm / actual_speed</code></td><td>Flat = cam-coupled (critical path); wandering = decoupled.</td></tr>
+    <tr><td><strong>Constraint onset</strong></td><td>deviation of that ratio from its learned baseline as speed rises</td><td>First axis to deviate is the emerging bottleneck.</td></tr>
+    <tr><td><strong>True cycle rate</strong></td><td><code>Δadvance_cycle_dump / Δt</code></td><td>Real bags/min from the cycle counter — independent of the HMI speed number.</td></tr>
+    <tr><td><strong>Fault signature</strong></td><td><code>{ax}_error_active</code> + <code>_error_id</code> + <code>_error_text</code></td><td>Which axis tripped, joinable to the speed at that moment.</td></tr>
+  </table>
+
+  <p><strong>Usual culprits:</strong> FF (film feed) sets film advance per cycle · CS (cross seal) seal dwell eats cycle time · VS (vertical seal) tied to film speed · UW (unwind) indirectly via tension. PK/BX matter only if inside the cycle window.</p>
+
+  <h2><span class="num">01</span>Small components that can slow the whole line</h2>
+  <p>A drive is usually the <strong>messenger</strong>, not the culprit — it faults or saturates because something small upstream let go. Any component that lets one part of the cycle slip will derate the whole master cycle, and several are trackable with tags we already poll.</p>
+
+  <h3>Four "derate signatures"</h3>
+  <ul>
+    <li><strong>Command without effect</strong> — output/command high, result missing. Heater cartridge, SSR, valve, clutch.</li>
+    <li><strong>Load creep at constant speed</strong> — current rising at steady rpm. Bearing, belt, chain, tension drag.</li>
+    <li><strong>Command/feedback divergence</strong> — sensor drifts from what is commanded. Thermocouple, encoder, potentiometer.</li>
+    <li><strong>Intermittent event cluster</strong> — stop bursts, not a steady derate. Sensor, relay, pneumatic.</li>
+  </ul>
+
+  <table>
+    <tr><th>Component</th><th>Failure mode</th><th>Effect on the line</th><th>Tracked by</th><th>Status</th></tr>
+    <tr><td><strong>Heater cartridge / SSR</strong></td><td>Element degrades, SSR partly fails</td><td>Can't reach setpoint → longer dwell or rejects → rate drops</td><td><code>{zone}_output</code> high while <code>{zone}_temp</code> sags; <code>{zone}_tol</code> flips</td><td><span class="tag">have</span></td></tr>
+    <tr><td><strong>Thermocouple</strong></td><td>Drifts / reads low</td><td>PID controls to wrong temp → seal quality falls</td><td>setpoint-vs-achieved divergence at <em>normal</em> output; zones disagree at same set</td><td><span class="tag">have</span></td></tr>
+    <tr><td><strong>Drive cooling fan / heatsink</strong></td><td>Blocked or fan dead</td><td>Drive temp rises → torque derate → axis caps cycle</td><td><code>{ax}_temp</code></td><td><span class="tag">have</span></td></tr>
+    <tr><td><strong>Bearing / belt / chain</strong></td><td>Wear, drag</td><td>Current climbs at steady rpm → axis becomes the constraint</td><td><code>{ax}_current</code> vs <code>{ax}_rpm</code></td><td><span class="tag">have</span></td></tr>
+    <tr><td><strong>Encoder / position sensor</strong></td><td>Drift (BX, PK, VS only)</td><td>Following error → master slows or faults</td><td><code>{ax}_position</code> vs command</td><td><span class="tag">have (3 axes)</span></td></tr>
+    <tr><td><strong>Unwind dancer / tension cylinder</strong></td><td>Spring or pneumatic weakens</td><td>Tension hunts → film slip → rejects + derate</td><td><code>dancer_pos</code> variance, <code>uw_current</code>, <code>web_roll_center</code></td><td><span class="tag">have</span></td></tr>
+    <tr><td><strong>Film-feed pull belt</strong></td><td>Slips / worn</td><td>Film advance short → registration off</td><td><code>ff_rpm</code> vs <code>actual_speed</code> coupling ratio</td><td><span class="tag">have</span></td></tr>
+    <tr><td><strong>Pneumatic pressure / regulator / solenoid</strong></td><td>Low air, slow actuation</td><td>Jaws/clamps/poker move slowly → stops</td><td>no pressure tag — only via the fault reason</td><td><span class="tag red">need</span></td></tr>
+    <tr><td><strong>Registration / print-mark sensor</strong></td><td>Dirty or misaligned</td><td>Registration faults → stops</td><td>fault reason counts only (<code>Print Mark Error</code>)</td><td><span class="tag red">partial</span></td></tr>
+  </table>
+
+  <p><strong>Sleeper asset:</strong> the OEE unplanned-reason arrays (<code>udt_0..10</code> + <code>unplanned_dt_sorted_titles</code>) are the HMI's own ranked failure taxonomy — Air Pressure Error, Print Mark Error, Material Chokeup, Printer Error, P.I.S Error. That list is the machine telling you <em>which small components fail most</em>; cross-reference it against the sensor trends to get root cause, not just symptom.</p>
+
+  <div class="callout">
+    <strong>When an axis looks slow, separate three cases:</strong> <strong>drive-internal</strong> (<code>{ax}_error_id</code> set and/or <code>{ax}_temp</code> high → drive/cooling), <strong>mechanical load</strong> (<code>{ax}_current</code> high, no error → bearing/belt/tension), <strong>external</strong> (no current or temp anomaly, command never rises → setpoint, film, or upstream). Only the first is a drive problem.
+  </div>
+
+  <h2><span class="num">02</span>What causes speed / output loss</h2>
+  <table>
+    <tr><th>Deviation</th><th>Why it costs output</th><th>Revealed by</th></tr>
+    <tr>
+      <td><strong>Seal-dwell constraint</strong> <span class="tag red">top suspect</span></td>
+      <td>Marginal seals force longer dwell → rate drops; the classic VFFS ceiling.</td>
+      <td><code>{zone}_output</code> high while <code>{zone}_temp</code> sags below set; <code>{zone}_tol</code> flips clustering at higher speed.</td>
+    </tr>
+    <tr>
+      <td><strong>Film tension / tracking</strong></td>
+      <td>Film slip → can't hold speed, rejects rise. A common hidden derate.</td>
+      <td><code>dancer_pos</code> off its idle band, <code>uw_current</code> rising, <code>web_roll_center</code> wandering.</td>
+    </tr>
+    <tr>
+      <td><strong>Mechanical drag</strong></td>
+      <td>Load builds → axis becomes the constraint; leading maintenance signal.</td>
+      <td><code>{ax}_current</code> creeping at constant <code>{ax}_rpm</code> / <code>{ax}_temp</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>Micro-stops</strong></td>
+      <td>Many short stops hurt availability more than one long stop.</td>
+      <td>Rise in <code>alarm_count</code> per <code>advance_cycle_dump</code> delta → stops per 1000 bags.</td>
+    </tr>
+    <tr>
+      <td><strong>Configured headroom</strong></td>
+      <td><code>set_speed</code> &lt; <code>max_speed</code> is deliberately unused capacity.</td>
+      <td><code>set_speed</code> vs <code>max_speed</code> vs <code>actual_speed</code> gap.</td>
+    </tr>
+  </table>
+
+  <h2><span class="num">03</span>Safe ways to unlock output — ranked by risk</h2>
+  <ol>
+    <li><strong>Close the actual↔set gap.</strong> No process change — pure stability (tension, seal heat, stop reduction).</li>
+    <li><strong>Hunt the constraint at current set_speed.</strong> Find the axis/zone deviating first and fix it mechanically, not by control.</li>
+    <li><strong>Raise set_speed only while guardrails hold.</strong> Quality flat (tol-flips and rejects not rising) AND no axis's current/rpm ratio deteriorating. A supervised trial — where a write path would eventually help, but the analysis works standalone first.</li>
+    <li><strong>Improve heater control to shorten dwell.</strong> Better temp stability buys cycle time without touching speed.</li>
+  </ol>
+  <div class="callout warn">
+    <strong>Safety guardrail:</strong> faster sealing can produce weak seals. Speed is only safe while reject rate and seal-zone tolerance stay flat — every trial needs a quality abort condition.
+  </div>
+
+  <h2><span class="num">04</span>Speed tracking design</h2>
+  <p>Per snapshot, record: <code>actual_speed</code>, <code>set_speed</code>, <code>max_speed</code>, all <code>{ax}_rpm</code>/<code>{ax}_current</code>, all <code>{zone}_temp</code>/<code>output</code>/<code>tol</code>, <code>dancer_pos</code>, <code>advance_cycle_dump</code>. Then compute rolling — the first series to degrade as speed rises is the constraint:</p>
+  <ul>
+    <li>Cycle rate from the counter</li>
+    <li>Per-axis coupling ratios</li>
+    <li>Per-axis current-per-rpm</li>
+    <li>Heater in-tolerance %</li>
+    <li>Stops per 1000 bags</li>
+  </ul>
+  <p>That's a small <strong>pure function over history points</strong> — testable against the dummy source.</p>
+
+  <h2><span class="num">05</span>Data gaps worth flagging</h2>
+  <ul>
+    <li><strong>No air-pressure tag</strong> — yet "Air Pressure Error" is a top unplanned reason. Symptom visible, cause not.</li>
+    <li><strong>No per-cycle position / cycle-time tag</strong> — both would sharpen speed analysis a lot (<code>advance_cycle_dump</code> is the only cycle proxy).</li>
+  </ul>
+
+  <footer>PaceAI Orion — speed &amp; efficiency analysis.</footer>
+
+</div>
+</body>
+</html>

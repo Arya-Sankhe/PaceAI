@@ -52,6 +52,12 @@ export const api = {
   source: () => req<SourceStatus>("/source"),
   setSource: (mode: SourceMode) =>
     req<SourceStatus>("/source", { method: "PUT", body: JSON.stringify({ mode }) }),
+  shiftReport: async (key: string) => {
+    const res = await fetch(`/api/v1/machines/${key}/report.pdf`, { headers: await authHeaders() });
+    if (!res.ok) throw new Error(`api_${res.status}`);
+    const name = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1];
+    return { blob: await res.blob(), filename: name ?? `shift-report-${key}.pdf` };
+  },
   dashboardCatalog: (key: string) => req<Signal[]>(`/machines/${key}/dashboard/catalog`),
   dashboardPlan: (key: string, prompt: string, current: PlannerWidget[], focus: string | null) =>
     req<DashboardPlan>(`/machines/${key}/dashboard/plan`, {
